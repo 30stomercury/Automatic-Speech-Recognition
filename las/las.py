@@ -8,10 +8,10 @@ class Listener:
     def __init__(self, args):
         self.args = args
 
-    def __call__(self, inputs):
+    def __call__(self, inputs, audio_len):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            enc_out, enc_states = pblstm(inputs, self.args.num_enc_layers, self.args.enc_units, self.args.keep_proba, self.args.is_training)
-        return enc_out, enc_state
+            enc_out, enc_states, enc_len = pblstm(inputs, audio_len, self.args.num_enc_layers, self.args.enc_units, self.args.keep_proba, self.args.is_training)
+        return enc_out, enc_state, enc_len
 
 class Speller:
 
@@ -71,11 +71,13 @@ class Speller:
 
 class LAS:
 
-    def __init__(self, args, listener, speller):
+    def __init__(self, args, listener, speller, char2id, id2char):
         '''Consturct Listen attend ande spell objects.
         Args:
             args: Include model/train/inference parameters that are packed in arguments.py
         '''
+        if not args.vocab_size:
+            args.vocab = len(char2id)
         self.args = args
         self.listener = listener(args)
         self.speller = speller(args)

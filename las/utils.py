@@ -69,7 +69,7 @@ def blstm(inputs, cell_units, keep_proba, is_training):
                                                           time_major=False)
     return outputs, states
 
-def pblstm(inputs, num_layers, cell_units, keep_proba, is_training):
+def pblstm(inputs, audio_len, num_layers, cell_units, keep_proba, is_training):
     batch_size = tf.shape(inputs)[0]
     rnn_out = inputs
     for l in range(num_layers):
@@ -85,4 +85,5 @@ def pblstm(inputs, num_layers, cell_units, keep_proba, is_training):
             rnn_out = tf.concat([even_new, odd_new], -1)        
             cell_units = cell_units*4
             rnn_out = tf.reshape(rnn_out, [batch_size, -1, cell_units])
-    return rnn_out, states 
+            audio_len = (audio_len + audio_len % 2) / 2
+    return rnn_out, states, audio_len
