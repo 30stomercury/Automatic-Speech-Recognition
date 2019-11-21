@@ -20,7 +20,7 @@ class Speller:
         self._build_decoder_cell()
         self._build_char_embeddings()
 
-    def __call__(self, enc_out, dec_step, teacher):
+    def __call__(self, enc_out, enc_len, dec_step, teacher):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
             prev_char = tf.nn.embedding_lookup(
                             self.embedding_matrix, tf.zeros(self.args.batch_size))
@@ -28,10 +28,10 @@ class Speller:
             output = []
             alphas = []
             for t in range(dec_steps):
-                context = self.attention(h=enc_out, 
-                                         char=prev_char, 
-                                         hidden_size=self.args.embedding_size, 
-                                         seqlength=seqlength)
+                context, alphas = self.attention(h=enc_out, 
+                                                 char=prev_char, 
+                                                 hidden_size=self.args.embedding_size, 
+                                                 seqlength=enc_len)
                 dec_in = tf.concat([prev_char, context], -1) # dim = enc dim + embedding dim
                 dec_out, dec_state = self.dec_cell(
                                 dec_in, dec_state)
@@ -82,20 +82,25 @@ class LAS:
         self.listener = listener(args)
         self.speller = speller(args)
 
-    def train(self, x, y):
+    def train(self, xs, ys):
         ''' Buid decoder encoder network, compute loss.
         Args:
-            x: (B, T1, D), T1: feature timesteps.
-            y: (B, T2), T2: output time steps.
+            xs: a tuple of 
+                - audio: (B, T1, D), T1: padded feature timesteps.
+                - audio_len: (B,), original feature length.
+            ys: 
+                - y: (B, T2), T2: output time steps.
+                - char_len: (B,), original character length.
         Returns: 
-            loss: scalar.
-            train_op: training operation.
-            global_step: scalar.
-            summaries: tf-board summarise
+            loss
+            train_op
+            global_step
+            summaries
         '''
         # encoder decoder network
-        h, enc_state = self.listener(x)
-        output_seq = self.speller()
+        h, enc_state, enc_len = self.listener(audio, audio_len)
+        output_seq = self.speller(
+                        h, enc_len, dec_step, teacher)
         
         
         

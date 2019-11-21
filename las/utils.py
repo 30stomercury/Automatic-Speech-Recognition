@@ -1,23 +1,39 @@
 import tensorflow as tf
 
-def attention(h, char, hidden_size, seqlength):
+def mask(x, length):
+    """Creating mask for sequences with different lengths in a batch.
+    Args:
+        x:      (B, T), T: length of padded sequence.
+        length: (B,), original lengths of sequences in a batch.
+    Return:
+        mask:   (B, T), mask of varied lengths.
+    """
+    seqlength = tf.shape(x)[-1]
+    y = tf.range(1, seqlength+1, 1)
+    length = tf.expand_dims(length, 1)
+    y = tf.expand_dims(y, 0)
+    mask = y <= length
+    return tf.cast(mask, tf.float32)
+
+def attention(h, char, hidden_size, audio_len):
+    """Bahdanau attention"""
     with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
-        ### context vector c w/ Bahdanau attention###
         attention_size = 16
+        seqlength = tf.shape(h)[1]
         char_tile = tf.tile(tf.expand_dims(char, 1), [1, seqlength, 1])
         # Trainable parameters
         W_h = tf.Variable(tf.random_normal([hidden_size, attention_size], stddev=0.1))
         W_p = tf.Variable(tf.random_normal([hidden_size, attention_size], stddev=0.1))
         b = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
         u = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
-        v = tf.nn.tanh(tf.tensordot(h, W_h, axes=1) + tf.tensordot(char, W_p, axes=1) + b)
+        v = tf.nn.tanh(tf.tensordot(h, W_h, axes=1) + tf.tensordot(char_tile, W_p, axes=1) + b)
         vu = tf.tensordot(v, u, axes=1)
         # mask attention weights
-        mask_att = tf.sign(tf.abs(tf.reduce_sum(h, axis=-1)))            # [B, seqlen]
+        mask_att = mask(tf.reduce_sum(h, axis=-1), audio_len)   # (B, T)
         paddings = tf.ones_like(mask_att)*(-1e8)
-        vu = tf.where(tf.equal(mask_att, 0), paddings, vu)               # (B, seqlen)
-        alphas = tf.nn.softmax(vu)                                       # (B, seqlen)
-        # Output reduced with context vector: [batch_size, sequence_len]
+        vu = tf.where(tf.equal(mask_att, 0), paddings, vu)      
+        alphas = tf.nn.softmax(vu)                             
+        # Output reduced with context vector: (B, T)
         out = tf.reduce_sum(h * tf.expand_dims(alphas, -1), 1)
     return out, alphas
 
@@ -71,7 +87,12 @@ def blstm(inputs, cell_units, keep_proba, is_training):
 
 def pblstm(inputs, audio_len, num_layers, cell_units, keep_proba, is_training):
     batch_size = tf.shape(inputs)[0]
-    rnn_out = inputs
+    # a BLSTM layer
+    with tf.variable_scope('blstm'):
+        rnn_out, _ = blstm(inputs, cell_units, keep_proba, is_training)
+        rnn_out = tf.concat(rnn_out, -1)        
+        cell_units = cell_units*2
+    # Pyramid BLSTM layers
     for l in range(num_layers):
         with tf.variable_scope('pyramid_blstm_{}'.format(l)):
             rnn_out, states = blstm(
