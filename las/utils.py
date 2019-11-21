@@ -1,18 +1,26 @@
 import tensorflow as tf
 
-def mask(x, length):
+def mask(original_len, padded_len):
     """Creating mask for sequences with different lengths in a batch.
     Args:
-        x:      (B, T), T: length of padded sequence.
-        length: (B,), original lengths of sequences in a batch.
+        original_len: (B,), original lengths of sequences in a batch.
+        padded_len:   scalar,  length of padded sequence.
     Return:
-        mask:   (B, T), mask of varied lengths.
+        mask:         (B, T), int32 tensor, a mask of varied lengths.
+
+    For example:
+        original_len = [2, 3, 1]
+        padded_len = 3
+        
+        mask = ([1, 1, 0],
+                [1, 1, 1],
+                [1, 0, 0])
     """
-    T = tf.shape(x)[-1]
-    y = tf.range(1, T+1, 1)
-    length = tf.expand_dims(length, 1)
+    y = tf.range(1, padded_len+1, 1)
+    original_len = tf.expand_dims(original_len, 1)
+    original_len = tf.cast(original_len, tf.int32)
     y = tf.expand_dims(y, 0)
-    mask = y <= length
+    mask = y <= original_len
     return tf.cast(mask, tf.float32)
 
 def attention(h, char, hidden_size, seq_len):
@@ -30,7 +38,7 @@ def attention(h, char, hidden_size, seq_len):
                 tf.tensordot(h, W_h, axes=1) + tf.tensordot(char_tile, W_p, axes=1) + b)
         vu = tf.tensordot(v, u, axes=1)
         # mask attention weights
-        mask_att = mask(tf.reduce_sum(h, axis=-1), seq_len)   # (B, T)
+        mask_att = mask(seq_len, T)   # (B, T)
         paddings = tf.ones_like(mask_att)*(-1e8)
         vu = tf.where(tf.equal(mask_att, 0), paddings, vu)      
         alphas = tf.nn.softmax(vu)                             
@@ -81,10 +89,10 @@ def blstm(inputs, cell_units, keep_proba, is_training):
                                                 input_keep_prob=1)
 
     outputs, states = tf.nn.bidirectional_dynamic_rnn(cell_fw=fw_cell,
-                                                          cell_bw=bw_cell,
-                                                          inputs= inputs,
-                                                          dtype=tf.float32,
-                                                          time_major=False)
+                                                      cell_bw=bw_cell,
+                                                      inputs= inputs,
+                                                      dtype=tf.float32,
+                                                      time_major=False)
     return outputs, states
 
 def pblstm(inputs, audio_len, num_layers, cell_units, keep_proba, is_training):

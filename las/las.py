@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from las import utils
+from las.utils import *
 
 class Listener:
 
@@ -10,47 +10,49 @@ class Listener:
 
     def __call__(self, inputs, audio_len):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            enc_out, enc_states, enc_len = pblstm(inputs, audio_len, self.args.num_enc_layers, self.args.enc_units, self.args.keep_proba, self.args.is_training)
+            enc_out, enc_state, enc_len = pblstm(
+                inputs, audio_len, self.args.num_enc_layers, self.args.enc_units, self.args.keep_proba, self.args.is_training)
         return enc_out, enc_state, enc_len
 
 class Speller:
 
     def __init__(self, args):
         self.args = args
+        self.embedding_size = args.enc_units*2*(args.num_enc_layers*2)**2
         self._build_decoder_cell()
         self._build_char_embeddings()
 
-    def __call__(self, enc_out, enc_len, dec_step, teacher):
+    def __call__(self, enc_out, enc_len, dec_steps, teacher):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
             prev_char = tf.nn.embedding_lookup(
-                            self.embedding_matrix, tf.zeros(self.args.batch_size))
-            dec_state = dec_cell.zero_state(self.args.batch_size, tf.float32)
+                            self.embedding_matrix, tf.zeros(self.args.batch_size, dtype=tf.int32))
+            dec_state = self.dec_cell.zero_state(self.args.batch_size, tf.float32)
             output = []
-            alphas = []
+            atten = []
             for t in range(dec_steps):
-                context, alphas = self.attention(h=enc_out, 
+                context, alphas = attention(h=enc_out, 
                                                  char=prev_char, 
-                                                 hidden_size=self.args.embedding_size, 
-                                                 seqlength=enc_len)
+                                                 hidden_size=self.embedding_size, 
+                                                 seq_len=enc_len)
                 dec_in = tf.concat([prev_char, context], -1) # dim = enc dim + embedding dim
                 dec_out, dec_state = self.dec_cell(
                                 dec_in, dec_state)
                 cur_char = tf.layers.dense(
-                                self.dec_out, 
+                                dec_out, 
                                 self.args.vocab_size, use_bias=True)
                 cur_char = tf.nn.dropout(cur_char, self.args.keep_proba)
                 if self.args.teacher_forcing:
                     prev_char = tf.nn.embedding_lookup(
-                            embedding_matrix, teacher[:, t])
+                            self.embedding_matrix, teacher[:, t])
                 else:
                     prev_char = tf.nn.embedding_lookup(
-                            embedding_matrix, tf.argmax(cur_char, -1))
+                            self.embedding_matrix, tf.argmax(cur_char, -1))
                 prev_char = tf.nn.dropout(prev_char, self.args.keep_proba)
 
                 output.append(cur_char)
-                alphas.append(attn)
+                atten.append(alphas)
             logits = tf.stack(output, axis=1)
-        return output, alphas
+        return logits, atten
 
     def _build_decoder_cell(self):
         def rnn_cell():
@@ -66,7 +68,7 @@ class Speller:
         with tf.variable_scope('embedding', reuse=tf.AUTO_REUSE):
             embedding_matrix = tf.get_variable(
                 name='embedding_matrix',
-                shape=[self.args.vocab_size, self.args.embedding_size],
+                shape=[self.args.vocab_size, self.embedding_size],
                 initializer=tf.random_uniform_initializer(minval=-1, maxval=1))
             self.embedding_matrix = embedding_matrix
 
@@ -107,15 +109,21 @@ class LAS:
                             h, enc_len, dec_step, teacher)
         
         # compute loss
-        loss = self.compute_loss(logits, y)
+        loss = self.compute_loss(logits, y, char_len)
         global_step = tf.train.get_or_create_global_step()
         optimizer = tf.train.AdamOptimizer(self.args.lr)
-        train_op = optimizer.minimize(loss, global_step=global_step)
+        # gradient clipping
+        if self.args.grad_clip > 0:
+            grad, variables = zip(*optimizer.compute_gradients(loss))
+            grad, _ = tf.clip_by_global_norm(grad, self.args.grad_clip)
+            train_op = optimizer.apply_gradients(zip(grad, variables))
+        else:
+            train_op = optimizer.minimize(loss, global_step=global_step)
         return loss, train_op, global_step
 
-    def compute_loss(self, logits, labels):
+    def compute_loss(self, logits, y, char_len):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y)
-        mask_padding = mask(y, char_len)
+        mask_padding = mask(char_len), y.shape[1]
         loss = tf.reduce_sum(cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
         return loss
 
