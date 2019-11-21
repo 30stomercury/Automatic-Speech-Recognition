@@ -32,15 +32,25 @@ def parse_args():
                         type=int, 
                         default=10, 
                         help='The number of training epochs.')
-    # hparams in decoder
-    parser.add_argument('--dec_units',
+    # hparams of Listener
+    parser.add_argument('--enc_units',
                         type=int,
                         default=128,
-                        help='The hidden dimension of the LSTM in the Decoder.')
+                        help='The hidden dimension of the pBLSTM in Listener.')
     parser.add_argument('--num_dec_layers',
                         type=int,
                         default=2,
-                        help='The number of layers of LSTM in Decoder.')
+                        help='The number of layers of pBLSTM in Listener.')
+
+    # hparams of Speller
+    parser.add_argument('--dec_units',
+                        type=int,
+                        default=128,
+                        help='The hidden dimension of the LSTM in Speller.')
+    parser.add_argument('--num_dec_layers',
+                        type=int,
+                        default=2,
+                        help='The number of layers of LSTM in Speller.')
     parser.add_argument('--vocab_size',
                         type=int,
                         default=100000,
@@ -53,4 +63,5 @@ def parse_args():
                         type=str2bool,
                         default=True,
                         help='Apply teacher forcing in decoder while training.')
-
+    args = parser.parse_args()
+    return args

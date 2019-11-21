@@ -49,6 +49,7 @@ class Speller:
 
                 output.append(cur_char)
                 alphas.append(attn)
+            logits = tf.stack(output, axis=1)
         return output, alphas
 
     def _build_decoder_cell(self):
@@ -81,30 +82,40 @@ class LAS:
         self.args = args
         self.listener = listener(args)
         self.speller = speller(args)
+        self.char2id = char2id
+        self.id2char = id2char
 
     def train(self, xs, ys):
         ''' Buid decoder encoder network, compute loss.
         Args:
             xs: a tuple of 
-                - audio: (B, T1, D), T1: padded feature timesteps.
+                - audio:     (B, T1, D), T1: padded feature timesteps.
                 - audio_len: (B,), original feature length.
             ys: 
-                - y: (B, T2), T2: output time steps.
-                - char_len: (B,), original character length.
+                - y:         (B, T2), T2: output time steps.
+                - char_len:  (B,), original character length.
         Returns: 
             loss
             train_op
             global_step
-            summaries
         '''
+        audio, audio_len = xs
+        y, char_len = ys
         # encoder decoder network
         h, enc_state, enc_len = self.listener(audio, audio_len)
-        output_seq = self.speller(
-                        h, enc_len, dec_step, teacher)
+        logits, alphas = self.speller(
+                            h, enc_len, dec_step, teacher)
         
-        
-        
+        # compute loss
+        loss = self.compute_loss(logits, y)
+        global_step = tf.train.get_or_create_global_step()
+        optimizer = tf.train.AdamOptimizer(self.args.lr)
+        train_op = optimizer.minimize(loss, global_step=global_step)
+        return loss, train_op, global_step
 
-
-
+    def compute_loss(self, logits, labels):
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y)
+        mask_padding = mask(y, char_len)
+        loss = tf.reduce_sum(cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
+        return loss
 

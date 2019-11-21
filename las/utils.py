@@ -8,28 +8,29 @@ def mask(x, length):
     Return:
         mask:   (B, T), mask of varied lengths.
     """
-    seqlength = tf.shape(x)[-1]
-    y = tf.range(1, seqlength+1, 1)
+    T = tf.shape(x)[-1]
+    y = tf.range(1, T+1, 1)
     length = tf.expand_dims(length, 1)
     y = tf.expand_dims(y, 0)
     mask = y <= length
     return tf.cast(mask, tf.float32)
 
-def attention(h, char, hidden_size, audio_len):
+def attention(h, char, hidden_size, seq_len):
     """Bahdanau attention"""
     with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
         attention_size = 16
-        seqlength = tf.shape(h)[1]
-        char_tile = tf.tile(tf.expand_dims(char, 1), [1, seqlength, 1])
+        T = tf.shape(h)[1]
+        char_tile = tf.tile(tf.expand_dims(char, 1), [1, T, 1])
         # Trainable parameters
         W_h = tf.Variable(tf.random_normal([hidden_size, attention_size], stddev=0.1))
         W_p = tf.Variable(tf.random_normal([hidden_size, attention_size], stddev=0.1))
         b = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
         u = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
-        v = tf.nn.tanh(tf.tensordot(h, W_h, axes=1) + tf.tensordot(char_tile, W_p, axes=1) + b)
+        v = tf.nn.tanh(
+                tf.tensordot(h, W_h, axes=1) + tf.tensordot(char_tile, W_p, axes=1) + b)
         vu = tf.tensordot(v, u, axes=1)
         # mask attention weights
-        mask_att = mask(tf.reduce_sum(h, axis=-1), audio_len)   # (B, T)
+        mask_att = mask(tf.reduce_sum(h, axis=-1), seq_len)   # (B, T)
         paddings = tf.ones_like(mask_att)*(-1e8)
         vu = tf.where(tf.equal(mask_att, 0), paddings, vu)      
         alphas = tf.nn.softmax(vu)                             
@@ -42,7 +43,8 @@ def lstm(inputs, num_layers, cell_units, keep_proba, is_training):
         # lstm cell
         return tf.contrib.rnn.BasicRNNCell(cell_units)
     if num_layers > 1:
-        cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell() for _ in range(num_layers)], state_is_tuple=True)
+        cell = tf.nn.rnn_cell.MultiRNNCell(
+                [rnn_cell() for _ in range(num_layers)], state_is_tuple=True)
     else:
         cell = rnn_cell()
     # when training, add dropout to regularize.
@@ -99,8 +101,8 @@ def pblstm(inputs, audio_len, num_layers, cell_units, keep_proba, is_training):
                     rnn_out, cell_units, keep_proba, is_training)
             rnn_out = tf.concat(rnn_out, -1)        
             # Eq (5) in Listen, Attend and Spell
-            seqlength = tf.shape(rnn_out)[1]
-            padded_out = tf.pad(rnn_out, [[0, 0], [0, seqlength % 2], [0, 0]])
+            T = tf.shape(rnn_out)[1]
+            padded_out = tf.pad(rnn_out, [[0, 0], [0, T % 2], [0, 0]])
             even_new = padded_out[:, ::2, :]
             odd_new = padded_out[:, 1::2, :]
             rnn_out = tf.concat([even_new, odd_new], -1)        
