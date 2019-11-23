@@ -82,8 +82,8 @@ class LAS:
         if not args.vocab_size:
             args.vocab = len(char2id)
         self.args = args
-        self.listener = listener(args)
-        self.speller = speller(args)
+        self.listener = Listener(args)
+        self.speller = Speller(args)
         self.char2id = char2id
         self.id2char = id2char
 
@@ -106,7 +106,7 @@ class LAS:
         # encoder decoder network
         h, enc_state, enc_len = self.listener(audio, audio_len)
         logits, alphas = self.speller(
-                            h, enc_len, dec_step, teacher)
+                            h, enc_len, y.shape[-1], y)
         
         # compute loss
         loss = self.compute_loss(logits, y, char_len)
@@ -119,11 +119,20 @@ class LAS:
             train_op = optimizer.apply_gradients(zip(grad, variables))
         else:
             train_op = optimizer.minimize(loss, global_step=global_step)
-        return loss, train_op, global_step
+        return loss, train_op, global_step, logits
 
     def compute_loss(self, logits, y, char_len):
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y)
-        mask_padding = mask(char_len), y.shape[1]
+        y_ = tf.one_hot(y, self.args.vocab_size)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y_)
+        mask_padding = mask(char_len, y.shape[1])
         loss = tf.reduce_sum(cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
         return loss
 
+    def debug(self, xs, ys):
+        audio, audio_len = xs
+        y, char_len = ys
+        # encoder decoder network
+        h, enc_state, enc_len = self.listener(audio, audio_len)
+        logits, alphas = self.speller(
+                            h, enc_len, y.shape[-1], y)
+        return logits
