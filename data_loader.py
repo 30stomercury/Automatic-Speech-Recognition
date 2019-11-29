@@ -76,7 +76,7 @@ def process_audio(audio_path,
     featlen = []
 
     # start extracting audio feature in a batch manner:
-    for p in audio_path[:50]:
+    for p in audio_path:
         audio, fs = librosa.load(p)
         audio_batch.append(audio)
         len_batch.append(len(audio))
@@ -110,7 +110,7 @@ def process_texts(special_chars, texts):
     charlen = []
     chars = []
     char2id, id2char = lookup_dicts(special_chars)
-    for sentence in texts[:50]:
+    for sentence in texts:
         sentence = sentence.translate(str.maketrans('', '', string.punctuation))
         char_converted = [char2id[char] if char != ' ' else char2id['<SPACE>'] for char in list(sentence)]
         chars.append([char2id['<SOS>']] + char_converted + [char2id['<EOS>']])
@@ -164,7 +164,7 @@ def batch_gen(feats, chars, featlen, charlen, batch_size=5, shuffle=True):
             
         for i, x in enumerate(zip(feats_, chars_)):
             if i % batch_size == 0 and buff_feats and buff_chars:
-                yield np.stack(buff_feats, 0), np.stack(buff_chars, 0), len_batch1, len_batch2
+                yield (np.stack(buff_feats, 0), len_batch1), (np.stack(buff_chars, 0), len_batch2)
                 buff_feats = []
                 buff_chars = []
             if i % batch_size == 0:
@@ -184,10 +184,10 @@ def batch_gen(feats, chars, featlen, charlen, batch_size=5, shuffle=True):
 
         if buff_feats and buff_chars:
             print(np.stack(buff_chars, 0).shape)
-            yield np.stack(buff_feats, 0), np.stack(buff_chars, 0), len_batch1, len_batch2
+            yield (np.stack(buff_feats, 0), len_batch1), (np.stack(buff_chars, 0), len_batch2)
 
-    shapes = ([None, None, None], [None, None], [None], [None])
-    types = (tf.float32, tf.int32, tf.int32, tf.int32)
+    shapes = (([None, None, None], [None]), ([None, None], [None]))
+    types = ((tf.float32, tf.int32), (tf.int32, tf.int32))
     dataset = tf.data.Dataset.from_generator(generator,
                                              output_types=types, 
                                              output_shapes=shapes)
@@ -210,5 +210,5 @@ if __name__ == "__main__":
     sess.run(iter_.initializer)
     print(num_batches)
     for _ in range(5):
-        d = sess.run(x)
-        print(d[0].shape, d[1].shape, d[2].shape, d[3].shape)
+        a, b = sess.run(x)
+        print(a[0].shape, a[1].shape, b[0].shape, b[1].shape)

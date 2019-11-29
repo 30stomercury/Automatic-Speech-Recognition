@@ -18,7 +18,6 @@ class Speller:
 
     def __init__(self, args):
         self.args = args
-        self.embedding_size = args.enc_units*2*(args.num_enc_layers*2)**2
         self._build_decoder_cell()
         self._build_char_embeddings()
 
@@ -27,14 +26,16 @@ class Speller:
             prev_char = tf.nn.embedding_lookup(
                             self.embedding_matrix, tf.zeros(self.args.batch_size, dtype=tf.int32))
             dec_state = self.dec_cell.zero_state(self.args.batch_size, tf.float32)
+            hidden_size = self.args.enc_units*2*(self.args.num_enc_layers*2)**2 # - > output hidden dimension of h
             output = []
             atten = []
             for t in range(dec_steps):
                 context, alphas = attention(h=enc_out, 
-                                                 char=prev_char, 
-                                                 hidden_size=self.embedding_size, 
-                                                 seq_len=enc_len)
-                dec_in = tf.concat([prev_char, context], -1) # dim = enc dim + embedding dim
+                                            char=prev_char, 
+                                            hidden_size=hidden_size, 
+                                            embedding_size=self.args.embedding_size, 
+                                            seq_len=enc_len)
+                dec_in = tf.concat([prev_char, context], -1) # dim = h dim + embedding dim
                 dec_out, dec_state = self.dec_cell(
                                 dec_in, dec_state)
                 cur_char = tf.layers.dense(
@@ -68,7 +69,7 @@ class Speller:
         with tf.variable_scope('embedding', reuse=tf.AUTO_REUSE):
             embedding_matrix = tf.get_variable(
                 name='embedding_matrix',
-                shape=[self.args.vocab_size, self.embedding_size],
+                shape=[self.args.vocab_size, self.args.embedding_size],
                 initializer=tf.random_uniform_initializer(minval=-1, maxval=1))
             self.embedding_matrix = embedding_matrix
 

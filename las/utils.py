@@ -23,7 +23,7 @@ def mask(original_len, padded_len):
     mask = y <= original_len
     return tf.cast(mask, tf.float32)
 
-def attention(h, char, hidden_size, seq_len):
+def attention(h, char, hidden_size, embedding_size, seq_len):
     """Bahdanau attention"""
     with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
         attention_size = 16
@@ -31,11 +31,11 @@ def attention(h, char, hidden_size, seq_len):
         char_tile = tf.tile(tf.expand_dims(char, 1), [1, T, 1])
         # Trainable parameters
         W_h = tf.Variable(tf.random_normal([hidden_size, attention_size], stddev=0.1))
-        W_p = tf.Variable(tf.random_normal([hidden_size, attention_size], stddev=0.1))
+        W_c = tf.Variable(tf.random_normal([embedding_size, attention_size], stddev=0.1))
         b = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
         u = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
         v = tf.nn.tanh(
-                tf.tensordot(h, W_h, axes=1) + tf.tensordot(char_tile, W_p, axes=1) + b)
+                tf.tensordot(h, W_h, axes=1) + tf.tensordot(char_tile, W_c, axes=1) + b)
         vu = tf.tensordot(v, u, axes=1)
         # mask attention weights
         mask_att = mask(seq_len, T)   # (B, T)
