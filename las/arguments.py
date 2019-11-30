@@ -13,6 +13,11 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='A tensorflow implementation of end-to-end speech recognition system:'
                     'Listen, Attend and Spell (LAS)')    
+    # feature arguments
+    parser.add_argument('--feat_dim', 
+                        type=int, 
+                        default=40, 
+                        help='The feature dimension.')
     # training arguments
     parser.add_argument('--is_training', 
                         type=str2bool, 
@@ -68,7 +73,7 @@ def parse_args():
                         help='The dimension of the embedding matrix is: [vocab_size, embedding_size].')
     parser.add_argument('--dec_steps',
                         type=int,
-                        default=200,
+                        default=300,
                         help='The decoding steps of char sequence.')
     parser.add_argument('--teacher_forcing',
                         type=str2bool,

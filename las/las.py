@@ -9,51 +9,60 @@ class Listener:
         self.args = args
 
     def __call__(self, inputs, audio_len):
-        with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
+            #inputs.set_shape([None, None, self.args.feat_dim])
             enc_out, enc_state, enc_len = pblstm(
                 inputs, audio_len, self.args.num_enc_layers, self.args.enc_units, self.args.keep_proba, self.args.is_training)
         return enc_out, enc_state, enc_len
 
 class Speller:
 
-    def __init__(self, args):
+    def __init__(self, args, char2id):
         self.args = args
+        self.char2id = char2id
+        self.hidden_size \
+                = self.args.enc_units*2*(self.args.num_enc_layers*2)**2 # - > output dimension of plstm h
         self._build_decoder_cell()
         self._build_char_embeddings()
 
     def __call__(self, enc_out, enc_len, dec_steps, teacher):
-        with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            prev_char = tf.nn.embedding_lookup(
-                            self.embedding_matrix, tf.zeros(self.args.batch_size, dtype=tf.int32))
-            dec_state = self.dec_cell.zero_state(self.args.batch_size, tf.float32)
-            hidden_size = self.args.enc_units*2*(self.args.num_enc_layers*2)**2 # - > output hidden dimension of h
-            output = []
-            atten = []
-            for t in range(dec_steps):
-                context, alphas = attention(h=enc_out, 
-                                            char=prev_char, 
-                                            hidden_size=hidden_size, 
-                                            embedding_size=self.args.embedding_size, 
-                                            seq_len=enc_len)
-                dec_in = tf.concat([prev_char, context], -1) # dim = h dim + embedding dim
-                dec_out, dec_state = self.dec_cell(
-                                dec_in, dec_state)
-                cur_char = tf.layers.dense(
-                                dec_out, 
-                                self.args.vocab_size, use_bias=True)
-                cur_char = tf.nn.dropout(cur_char, self.args.keep_proba)
-                if self.args.teacher_forcing:
-                    prev_char = tf.nn.embedding_lookup(
-                            self.embedding_matrix, teacher[:, t])
-                else:
-                    prev_char = tf.nn.embedding_lookup(
-                            self.embedding_matrix, tf.argmax(cur_char, -1))
-                prev_char = tf.nn.dropout(prev_char, self.args.keep_proba)
+        prev_char = tf.nn.embedding_lookup(
+                        self.embedding_matrix, tf.ones(self.args.batch_size, dtype=tf.int32))
+        dec_state = self.dec_cell.zero_state(self.args.batch_size, tf.float32)
+        output = []
+        atten = []
+        for t in range(dec_steps):
+            cur_char, alphas = self.decode(enc_out, enc_len, dec_state, prev_char)
+            if self.args.teacher_forcing:
+                prev_char = tf.nn.embedding_lookup(
+                        self.embedding_matrix, teacher[:, t])
+            else:
+                prev_char = tf.nn.embedding_lookup(
+                        self.embedding_matrix, tf.argmax(cur_char, -1))
+            prev_char = tf.nn.dropout(prev_char, self.args.keep_proba)
+            if tf.reduce_sum(cur_char, 1) == self.char2id["<PAD>"]: break
 
-                output.append(cur_char)
-                atten.append(alphas)
-            logits = tf.stack(output, axis=1)
+            output.append(cur_char)
+            atten.append(alphas)
+        logits = tf.stack(output, axis=1)
         return logits, atten
+
+    def decode(self, enc_out, enc_len, dec_state, prev_char):
+        with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
+            context, alphas = attention(h=enc_out, 
+                                        char=prev_char, 
+                                        hidden_size=self.hidden_size, 
+                                        embedding_size=self.args.embedding_size, 
+                                        seq_len=enc_len)
+            dec_in = tf.concat([prev_char, context], -1) # dim = h dim + embedding dim
+            dec_out, dec_state = self.dec_cell(
+                            dec_in, dec_state)
+            cur_char = tf.layers.dense(
+                            dec_out, 
+                            self.args.vocab_size, use_bias=True)
+            cur_char = tf.nn.dropout(cur_char, self.args.keep_proba)
+            return cur_char, alphas
+    
 
     def _build_decoder_cell(self):
         def rnn_cell():
@@ -84,7 +93,7 @@ class LAS:
             args.vocab = len(char2id)
         self.args = args
         self.listener = Listener(args)
-        self.speller = Speller(args)
+        self.speller = Speller(args, char2id)
         self.char2id = char2id
         self.id2char = id2char
 
@@ -93,24 +102,24 @@ class LAS:
         Args:
             xs: a tuple of 
                 - audio:     (B, T1, D), T1: padded feature timesteps.
-                - audio_len: (B,), original feature length.
+                - audiolen: (B,), original feature length.
             ys: 
                 - y:         (B, T2), T2: output time steps.
-                - char_len:  (B,), original character length.
+                - charlen:  (B,), original character length.
         Returns: 
             loss
             train_op
             global_step
         '''
-        audio, audio_len = xs
-        y, char_len = ys
+        audio, audiolen = xs
+        y, charlen = ys
         # encoder decoder network
-        h, enc_state, enc_len = self.listener(audio, audio_len)
+        h, enc_state, enc_len = self.listener(audio, audiolen)
         logits, alphas = self.speller(
-                            h, enc_len, y.shape[-1], y)
+                            h, enc_len, self.args.dec_steps, y)
         
         # compute loss
-        loss = self.compute_loss(logits, y, char_len)
+        loss = self.compute_loss(logits, y, charlen)
         global_step = tf.train.get_or_create_global_step()
         optimizer = tf.train.AdamOptimizer(self.args.lr)
         # gradient clipping
@@ -122,10 +131,10 @@ class LAS:
             train_op = optimizer.minimize(loss, global_step=global_step)
         return loss, train_op, global_step, logits
 
-    def compute_loss(self, logits, y, char_len):
+    def compute_loss(self, logits, y, charlen):
         y_ = tf.one_hot(y, self.args.vocab_size)
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y_)
-        mask_padding = mask(char_len, y.shape[1])
+        mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
         loss = tf.reduce_sum(cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
         return loss
 
@@ -133,7 +142,7 @@ class LAS:
         audio, audio_len = xs
         y, char_len = ys
         # encoder decoder network
-        h, enc_state, enc_len = self.listener(audio, audio_len)
+        h, enc_state, enc_len = self.listener(audio, audiolen)
         logits, alphas = self.speller(
                             h, enc_len, y.shape[-1], y)
         return logits
