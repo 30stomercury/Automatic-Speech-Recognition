@@ -29,12 +29,13 @@ def data_preparation(libri_path):
     return texts, audio_path
 
 def process_audio(audio_path, 
-               sess, 
-               prepro_batch=128, 
-               sample_rate=22050,
-               frame_step=10, 
-               feat_dim = 40,
-               feat_type='fbank'):
+                  sess, 
+                  prepro_batch=128, 
+                  sample_rate=22050,
+                  frame_step=10, 
+                  frame_length=25,
+                  feat_dim = 40,
+                  feat_type='fbank'):
     """GPU accerated audio features extracting in tensorflow
 
     Args:
@@ -56,7 +57,7 @@ def process_audio(audio_path,
     input_audio = tf.placeholder(dtype=tf.float32, shape=[None, None])
     if feat_type == 'fbank':
         mel_fbanks = common_audio.compute_mel_filterbank_features(
-            input_audio, sample_rate=sample_rate, frame_step=frame_step, num_mel_bins=feat_dim, apply_mask=True)
+            input_audio, sample_rate=sample_rate, frame_step=frame_step, frame_length=frame_length, num_mel_bins=feat_dim, apply_mask=True)
         mel_fbanks = tf.reduce_sum(mel_fbanks, -1)
 
     def extract_feat(audio_batch, len_batch, fs):
@@ -76,7 +77,7 @@ def process_audio(audio_path,
     featlen = []
 
     # start extracting audio feature in a batch manner:
-    for p in audio_path:
+    for p in audio_path[:13]:
         audio, fs = librosa.load(p)
         audio_batch.append(audio)
         len_batch.append(len(audio))
@@ -110,13 +111,13 @@ def process_texts(special_chars, texts):
     charlen = []
     chars = []
     char2id, id2char = lookup_dicts(special_chars)
-    for sentence in texts:
+    for sentence in texts[:13]:
         sentence = sentence.translate(str.maketrans('', '', string.punctuation))
         char_converted = [char2id[char] if char != ' ' else char2id['<SPACE>'] for char in list(sentence)]
         chars.append([char2id['<SOS>']] + char_converted + [char2id['<EOS>']])
         charlen.append(len(chars[-1]))
 
-    return np.array(chars), np.array(charlen).astype(np.int32)
+    return np.array(chars), np.array(charlen).astype(np.int32), char2id, id2char
 
 def lookup_dicts(special_chars):
     """
@@ -136,7 +137,7 @@ def lookup_dicts(special_chars):
         id2char[i] = c
     return char2id, id2char
 
-def batch_gen(feats, chars, featlen, charlen, batch_size=5, shuffle=True):
+def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim, max_charlen, shuffle=True):
     """
     Returns:
         iter: Batch iterator.
@@ -149,7 +150,6 @@ def batch_gen(feats, chars, featlen, charlen, batch_size=5, shuffle=True):
     assert len(chars) == len(charlen)
     num_batches = len(feats) // batch_size + int(len(feats) % batch_size != 0)
 
-    print(charlen)
     def generator():
         buff_feats = []
         buff_chars = []
@@ -171,11 +171,10 @@ def batch_gen(feats, chars, featlen, charlen, batch_size=5, shuffle=True):
                 len_batch1 = featlen_[i:i+batch_size]
                 len_batch2 = charlen_[i:i+batch_size]
                 max_len1 = max(len_batch1)
-                max_len2 = max(len_batch2)
+                max_len2 = max_charlen
             # Padding
             x_feat, x_char = x
             padded_feat = np.zeros([max_len1 - x_feat.shape[0], x_feat.shape[1]], dtype=np.float32)
-            print(max_len2, len(x_char))
             padded_char = np.zeros(max_len2 - len(x_char), dtype=np.int32)
             feat_padded = np.concatenate([x_feat, padded_feat], 0)
             char_padded = np.concatenate([x_char, padded_char], 0)
@@ -183,10 +182,9 @@ def batch_gen(feats, chars, featlen, charlen, batch_size=5, shuffle=True):
             buff_chars.append(char_padded)
 
         if buff_feats and buff_chars:
-            print(np.stack(buff_chars, 0).shape)
             yield (np.stack(buff_feats, 0), len_batch1), (np.stack(buff_chars, 0), len_batch2)
 
-    shapes = (([None, None, None], [None]), ([None, None], [None]))
+    shapes = (([None, None, feat_dim], [None]), ([None, None], [None]))
     types = ((tf.float32, tf.int32), (tf.int32, tf.int32))
     dataset = tf.data.Dataset.from_generator(generator,
                                              output_types=types, 

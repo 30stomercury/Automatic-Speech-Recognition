@@ -14,10 +14,26 @@ def parse_args():
         description='A tensorflow implementation of end-to-end speech recognition system:'
                     'Listen, Attend and Spell (LAS)')    
     # feature arguments
+    parser.add_argument('--sample_rate', 
+                        type=int, 
+                        default=22050, 
+                        help='Sample rate.')
     parser.add_argument('--feat_dim', 
                         type=int, 
                         default=40, 
                         help='The feature dimension.')
+    parser.add_argument('--frame_length', 
+                        type=int, 
+                        default=25, 
+                        help='Frame length in ms.')
+    parser.add_argument('--frame_step', 
+                        type=int, 
+                        default=10, 
+                        help='Frame step in ms.')
+    parser.add_argument('--feat_type', 
+                        type=str, 
+                        default='fbank', 
+                        help='Log-mel filter bank.')
     # training arguments
     parser.add_argument('--is_training', 
                         type=str2bool, 
@@ -79,6 +95,16 @@ def parse_args():
                         type=str2bool,
                         default=True,
                         help='Apply teacher forcing in decoder while training.')
+    # save path
+    parser.add_argument('--result_path',
+                        type=str,
+                        default='./results',
+                        help='Save predicted texts.')
+    parser.add_argument('--save_path',
+                        type=str,
+                        default='./model/las',
+                        help='Save trained model.')
+
 
     args = parser.parse_args()
 

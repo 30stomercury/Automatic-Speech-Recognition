@@ -10,7 +10,6 @@ class Listener:
 
     def __call__(self, inputs, audio_len):
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
-            #inputs.set_shape([None, None, self.args.feat_dim])
             enc_out, enc_state, enc_len = pblstm(
                 inputs, audio_len, self.args.num_enc_layers, self.args.enc_units, self.args.keep_proba, self.args.is_training)
         return enc_out, enc_state, enc_len
@@ -26,9 +25,11 @@ class Speller:
         self._build_char_embeddings()
 
     def __call__(self, enc_out, enc_len, dec_steps, teacher):
+        #prev_char = tf.nn.embedding_lookup(
+        #                self.embedding_matrix, tf.ones(self.args.batch_size, dtype=tf.int32))
         prev_char = tf.nn.embedding_lookup(
-                        self.embedding_matrix, tf.ones(self.args.batch_size, dtype=tf.int32))
-        dec_state = self.dec_cell.zero_state(self.args.batch_size, tf.float32)
+                        self.embedding_matrix, tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
+        dec_state = self.dec_cell.zero_state(tf.shape(enc_out)[0], tf.float32)
         output = []
         atten = []
         for t in range(dec_steps):
@@ -113,13 +114,15 @@ class LAS:
         '''
         audio, audiolen = xs
         y, charlen = ys
+        # training phase
+        self.listener.args.is_training = True
+        self.speller.args.is_training = True
         # encoder decoder network
         h, enc_state, enc_len = self.listener(audio, audiolen)
         logits, alphas = self.speller(
                             h, enc_len, self.args.dec_steps, y)
-        
         # compute loss
-        loss = self.compute_loss(logits, y, charlen)
+        loss = self.get_loss(logits, y, charlen)
         global_step = tf.train.get_or_create_global_step()
         optimizer = tf.train.AdamOptimizer(self.args.lr)
         # gradient clipping
@@ -131,12 +134,26 @@ class LAS:
             train_op = optimizer.minimize(loss, global_step=global_step)
         return loss, train_op, global_step, logits
 
-    def compute_loss(self, logits, y, charlen):
+    def get_loss(self, logits, y, charlen):
         y_ = tf.one_hot(y, self.args.vocab_size)
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y_)
         mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
         loss = tf.reduce_sum(cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
         return loss
+
+    def inference(self, xs, ys):
+        audio, audiolen = xs
+        y, charlen = ys
+        # inference phase
+        self.listener.args.is_training = False
+        self.speller.args.is_training = False
+        # encoder decoder network
+        h, enc_state, enc_len = self.listener(audio, audiolen)
+        logits, alphas = self.speller(
+                            h, enc_len, self.args.dec_steps, y)
+        y_hat = tf.argmax(logits, -1)
+
+        return logits, y_hat, alphas
 
     def debug(self, xs, ys):
         audio, audio_len = xs
