@@ -82,10 +82,6 @@ sess.run(tf.global_variables_initializer())
 sess.run(train_iter.initializer)
 sess.run(dev_iter.initializer)
 
-print(sess.run(train_xs)[0].shape, sess.run(train_ys))
-print(sess.run(logits).shape)
-print(sess.run(1 - tf.cast(tf.equal(train_ys[0], 0), tf.float32)).shape)
-
 # training
 training_steps = num_train_batches * args.epoch
 print("num train batch", num_train_batches)
@@ -99,7 +95,7 @@ for step in range(training_steps):
         e_ =  gs // num_train_batches
         print("num epoch: {}, num_step: {}, ave loss: {}, wer: {}".format(
                                                 e_, gs, ave_loss, 0))
-        saver.save(sess, args.save_path+"/las_E{}".format(e_), global_step=_gs)        
+        saver.save(sess, args.save_path+"/las_E{}".format(e_), global_step=gs)        
         
         # eval
         texts = get_texts(y_hat, sess, num_dev_batches) 
