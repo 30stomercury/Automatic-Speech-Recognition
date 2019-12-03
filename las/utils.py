@@ -129,7 +129,7 @@ def convert_idx_to_token_tensor(inputs, id2char):
 
     return tf.py_func(my_func, [inputs], tf.string)
 
-def get_texts(y_hat, sess, num_batches):
+def get_texts(y_hat, sess, num_batches, id2char):
     output_id = []
     output_char = []
     for _ in range(num_batches):
