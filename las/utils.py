@@ -1,15 +1,5 @@
 import tensorflow as tf
 
-def convert_idx_to_token_tensor(inputs, id2char):
-    """Converts int32 tensor to string tensor.
-    Reference:
-        https://github.com/Kyubyong/transformer/blob/master/utils.py
-    """
-    def my_func(inputs):
-        return "".join(id2char[elem] for elem in inputs)
-
-    return tf.py_func(my_func, [inputs], tf.string)
-
 def mask(original_len, padded_len):
     """Creating mask for sequences with different lengths in a batch.
     Args:
@@ -129,13 +119,22 @@ def pblstm(inputs, audio_len, num_layers, cell_units, keep_proba, is_training):
             audio_len = (audio_len + audio_len % 2) / 2
     return rnn_out, states, audio_len
 
+def convert_idx_to_token_tensor(inputs, id2char):
+    """Converts int32 tensor to string tensor.
+    Reference:
+        https://github.com/Kyubyong/transformer/blob/master/utils.py
+    """
+    def my_func(inputs):
+        return "".join(id2char[elem] for elem in inputs)
+
+    return tf.py_func(my_func, [inputs], tf.string)
 
 def get_texts(y_hat, sess, num_batches):
     output_id = []
     output_char = []
     for _ in range(num_batches):
         pred = sess.run(y_hat)
-        output_id += pred.to_list()
+        output_id += pred.tolist()
 
     for h in outputs:
         sent = "".join(id2char[idx] for idx in h)

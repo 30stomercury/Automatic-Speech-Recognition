@@ -123,13 +123,13 @@ class LAS:
                             h, enc_len, self.args.dec_steps, y)
         # compute loss
         loss = self.get_loss(logits, y, charlen)
-        global_step = tf.train.get_or_create_global_step()
+        global_step = tf.train.get_global_step()
         optimizer = tf.train.AdamOptimizer(self.args.lr)
         # gradient clipping
         if self.args.grad_clip > 0:
             grad, variables = zip(*optimizer.compute_gradients(loss))
             grad, _ = tf.clip_by_global_norm(grad, self.args.grad_clip)
-            train_op = optimizer.apply_gradients(zip(grad, variables))
+            train_op = optimizer.apply_gradients(zip(grad, variables), global_step=global_step)
         else:
             train_op = optimizer.minimize(loss, global_step=global_step)
         return loss, train_op, global_step, logits
@@ -138,7 +138,8 @@ class LAS:
         y_ = tf.one_hot(y, self.args.vocab_size)
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y_)
         mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
-        loss = tf.reduce_sum(cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
+        loss = tf.reduce_sum(
+            cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
         return loss
 
     def inference(self, xs, ys):
