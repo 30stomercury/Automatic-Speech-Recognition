@@ -135,10 +135,10 @@ def get_texts(y_hat, sess, num_batches):
     for _ in range(num_batches):
         pred = sess.run(y_hat)
         output_id += pred.tolist()
-
-    for h in outputs:
+    for h in output_id:
         sent = "".join(id2char[idx] for idx in h)
         sent = sent.split("<EOS>")[0].strip()
         sent = sent.replace("<SPACE>", " ") 
-        output_char.append(sent.strip())
+        output_char.append(" ".join(sent.split()))
+
     return output_char

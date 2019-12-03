@@ -65,6 +65,8 @@ sample = convert_idx_to_token_tensor(y_hat[0], id2char)
 # saver
 if not os.path.exists(args.save_path):
     os.makedirs(args.save_path)
+if not os.path.exists(args.result_path):
+    os.makedirs(args.result_path)
 saver = tf.train.Saver(max_to_keep=100)
 ckpt = tf.train.latest_checkpoint(args.save_path)
 if ckpt is None:
@@ -98,5 +100,5 @@ for step in range(training_steps):
         
         # eval
         texts = get_texts(y_hat, sess, num_dev_batches) 
-        with open(args.results_path+"/texts_E{}".format(e_), 'w') as fout:
+        with open(args.result_path+"/texts_E{}.txt".format(e_), 'w') as fout:
             fout.write("\n".join(texts))

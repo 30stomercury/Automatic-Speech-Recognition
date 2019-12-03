@@ -123,7 +123,7 @@ class LAS:
                             h, enc_len, self.args.dec_steps, y)
         # compute loss
         loss = self.get_loss(logits, y, charlen)
-        global_step = tf.train.get_global_step()
+        global_step = tf.train.get_or_greate_global_step()
         optimizer = tf.train.AdamOptimizer(self.args.lr)
         # gradient clipping
         if self.args.grad_clip > 0:
