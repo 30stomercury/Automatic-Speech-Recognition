@@ -6,11 +6,14 @@ import os
 import numpy as np
 import tensorflow as tf
 
+
 # arguments
 args = parse_args()
 
 # init session 
-sess = tf.Session()
+gpu_options = tf.GPUOptions(allow_growth=True)
+sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
 
 # define data generator
 train_libri_path = './data/LibriSpeech_train/train-clean-100'
