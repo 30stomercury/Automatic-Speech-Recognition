@@ -118,12 +118,11 @@ sess.run(dev_iter.initializer)
 
 # training
 training_steps = num_train_batches * args.epoch
-print("num train batch", num_train_batches)
+print("Total num train batches:", num_train_batches)
 loss_ = []
 for step in range(training_steps):
     batch_loss, gs, _ = sess.run([loss, global_step, train_op])
-    print("num epoch: {}, num_step: {}, loss: {}".format(
-                                        e_, gs, 0))
+    print("num_step: {}, loss: {}".format(e_, gs, 0))
     loss_.append(batch_loss)
     if gs and gs % num_train_batches == 0:
         ave_loss = np.mean(loss_)
