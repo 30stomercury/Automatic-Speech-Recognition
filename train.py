@@ -112,7 +112,6 @@ else:
     saver.restore(sess, ckpt)
 
 # init iterator and graph
-sess.run(tf.global_variables_initializer())
 sess.run(train_iter.initializer)
 sess.run(dev_iter.initializer)
 
@@ -122,7 +121,7 @@ print("Total num train batches:", num_train_batches)
 loss_ = []
 for step in range(training_steps):
     batch_loss, gs, _ = sess.run([loss, global_step, train_op])
-    print("num_step: {}, loss: {}".format(e_, gs, 0))
+    print("num_step: {}, loss: {}".format(gs, batch_loss))
     loss_.append(batch_loss)
     if gs and gs % num_train_batches == 0:
         ave_loss = np.mean(loss_)

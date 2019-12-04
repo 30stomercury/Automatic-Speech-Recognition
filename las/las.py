@@ -33,7 +33,7 @@ class Speller:
         output = []
         atten = []
         for t in range(dec_steps):
-            cur_char, alphas = self.decode(enc_out, enc_len, dec_state, prev_char)
+            cur_char, dec_state, alphas = self.decode(enc_out, enc_len, dec_state, prev_char)
             if self.args.teacher_forcing:
                 prev_char = tf.nn.embedding_lookup(
                         self.embedding_matrix, teacher[:, t])
@@ -62,7 +62,7 @@ class Speller:
                             dec_out, 
                             self.args.vocab_size, use_bias=True)
             cur_char = tf.nn.dropout(cur_char, self.args.keep_proba)
-            return cur_char, alphas
+            return cur_char, dec_state, alphas
     
 
     def _build_decoder_cell(self):
