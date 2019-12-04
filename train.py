@@ -21,31 +21,65 @@ dev_libri_path = './data/LibriSpeech_dev/dev-clean'
 train_texts, train_audio_path = data_preparation(train_libri_path)
 dev_texts, dev_audio_path = data_preparation(dev_libri_path)
 
+# load from previous output
+try:
+    print("Load features...")
+    train_feats = np.load("data/features/train_feats.npy", allow_pickle=True)
+    train_featlen = np.load("data/features/train_featlen.npy", allow_pickle=True)
+    train_chars = np.load("data/features/train_chars.npy", allow_pickle=True)
+    train_charlen = np.load("data/features/train_charlen.npy", allow_pickle=True)
+    dev_feats = np.load("data/features/dev_feats.npy", allow_pickle=True)
+    dev_featlen = np.load("data/features/dev_featlen.npy", allow_pickle=True)
+    dev_chars = np.load("data/features/dev_chars.npy", allow_pickle=True)
+    dev_charlen = np.load("data/features/dev_charlen.npy", allow_pickle=True)
+
+    special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
+    char2id, id2char = lookup_dicts(special_chars)
+
 # process features
-print("Process train/dev features...")
-special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-train_chars, train_charlen, char2id, id2char = process_texts(special_chars, train_texts)
-dev_chars, dev_charlen, _, _ = process_texts(special_chars, dev_texts)
-train_feats, train_featlen = process_audio(train_audio_path, 
+except:
+    print("Process train/dev features...")
+    special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
+    train_chars, train_charlen, char2id, id2char = process_texts(special_chars, train_texts)
+    dev_chars, dev_charlen, _, _ = process_texts(special_chars, dev_texts)
+    train_feats, train_featlen = process_audio(train_audio_path, 
+                                               sess, 
+                                               prepro_batch=100,
+                                               sample_rate=args.sample_rate,
+                                               frame_step=args.frame_step,
+                                               frame_length=args.frame_length,
+                                               feat_dim=args.feat_dim,
+                                               feat_type=args.feat_type)
+    dev_feats, dev_featlen = process_audio(dev_audio_path, 
                                            sess, 
-                                           prepro_batch=64,
+                                           prepro_batch=100,
                                            sample_rate=args.sample_rate,
                                            frame_step=args.frame_step,
                                            frame_length=args.frame_length,
                                            feat_dim=args.feat_dim,
                                            feat_type=args.feat_type)
-dev_feats, dev_featlen = process_audio(dev_audio_path, 
-                                         sess, 
-                                         prepro_batch=64,
-                                         sample_rate=args.sample_rate,
-                                         frame_step=args.frame_step,
-                                         frame_length=args.frame_length,
-                                         feat_dim=args.feat_dim,
-                                         feat_type=args.feat_type)
+    np.save("data/train_feats.npy", train_feats)    
+    np.save("data/train_featlen.npy", train_featlen)
+    np.save("data/dev_feats.npy", dev_feats)
+    np.save("data/dev_featlen.npy", dev_featlen)
+    np.save("data/train_chars.npy", train_chars)
+    np.save("data/train_charlen.npy", train_charlen)
+    np.save("data/dev_chars.npy", dev_chars)
+    np.save("data/dev_charlen.npy", dev_charlen)
 
-# set decoding steps to max length and break if all cur_char in a batch are predicted to <PAD>
-# see line 24 in las/las.py
-args.dec_steps = np.max(np.max(train_charlen) + np.max(dev_charlen))
+# Clip text length to predefined decoding steps
+# train
+index = train_charlen < args.dec_steps
+train_feats = train_feats[index]
+train_featlen = train_featlen[index]
+train_chars = train_chars[index]
+train_charlen = train_charlen[index]
+# dev
+index = dev_charlen < args.dec_steps
+dev_feats = dev_feats[index]
+dev_featlen = dev_featlen[index]
+dev_chars = dev_chars[index]
+dev_charlen = dev_charlen[index]
 
 # init model 
 las =  LAS(args, Listener, Speller, char2id, id2char)
@@ -88,7 +122,8 @@ print("num train batch", num_train_batches)
 loss_ = []
 for step in range(training_steps):
     batch_loss, gs, _ = sess.run([loss, global_step, train_op])
-    print(step, gs, training_steps)
+    print("num epoch: {}, num_step: {}, loss: {}".format(
+                                        e_, gs, 0))
     loss_.append(batch_loss)
     if gs and gs % num_train_batches == 0:
         ave_loss = np.mean(loss_)
@@ -98,6 +133,6 @@ for step in range(training_steps):
         saver.save(sess, args.save_path+"/las_E{}".format(e_), global_step=gs)        
         
         # eval
-        texts = get_texts(y_hat, sess, num_dev_batches) 
+        texts = get_texts(y_hat, sess, num_dev_batches, id2char) 
         with open(args.result_path+"/texts_E{}.txt".format(e_), 'w') as fout:
             fout.write("\n".join(texts))
