@@ -96,7 +96,7 @@ dev_xs, dev_ys = dev_iter.get_next()
 # build train, inference graph 
 print("Build train, inference graph (please wait)...")
 loss, train_op, global_step, logits = las.train(train_xs, train_ys)
-logits, y_hat, atten = las.inference(dev_xs, dev_ys)
+logits, y_hat  = las.inference(dev_xs, dev_ys)
 sample = convert_idx_to_token_tensor(y_hat[0], id2char)
 
 # saver
