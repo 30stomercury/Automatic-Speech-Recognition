@@ -77,7 +77,7 @@ def process_audio(audio_path,
     featlen = []
 
     # start extracting audio feature in a batch manner:
-    for p in audio_path[:13]:
+    for p in audio_path:
         audio, fs = librosa.load(p)
         audio_batch.append(audio)
         len_batch.append(len(audio))
@@ -111,7 +111,7 @@ def process_texts(special_chars, texts):
     charlen = []
     chars = []
     char2id, id2char = lookup_dicts(special_chars)
-    for sentence in texts[:13]:
+    for sentence in texts:
         sentence = sentence.translate(str.maketrans('', '', string.punctuation))
         char_converted = [char2id[char] if char != ' ' else char2id['<SPACE>'] for char in list(sentence)]
         chars.append([char2id['<SOS>']] + char_converted + [char2id['<EOS>']])

@@ -42,6 +42,7 @@ except:
     special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     train_chars, train_charlen, char2id, id2char = process_texts(special_chars, train_texts)
     dev_chars, dev_charlen, _, _ = process_texts(special_chars, dev_texts)
+    """
     train_feats, train_featlen = process_audio(train_audio_path, 
                                                sess, 
                                                prepro_batch=100,
@@ -58,12 +59,13 @@ except:
                                            frame_length=args.frame_length,
                                            feat_dim=args.feat_dim,
                                            feat_type=args.feat_type)
+    """
     if not os.path.exists(args.feat_path):
         os.makedirs(args.feat_path)
-    np.save("data/features/train_feats.npy", train_feats)    
-    np.save("data/features/train_featlen.npy", train_featlen)
-    np.save("data/features/dev_feats.npy", dev_feats)
-    np.save("data/features/dev_featlen.npy", dev_featlen)
+    #np.save("data/features/train_feats.npy", train_feats)    
+    #np.save("data/features/train_featlen.npy", train_featlen)
+    #np.save("data/features/dev_feats.npy", dev_feats)
+    #np.save("data/features/dev_featlen.npy", dev_featlen)
     np.save("data/features/train_chars.npy", train_chars)
     np.save("data/features/train_charlen.npy", train_charlen)
     np.save("data/features/dev_chars.npy", dev_chars)
