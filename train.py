@@ -58,14 +58,16 @@ except:
                                            frame_length=args.frame_length,
                                            feat_dim=args.feat_dim,
                                            feat_type=args.feat_type)
-    np.save("data/train_feats.npy", train_feats)    
-    np.save("data/train_featlen.npy", train_featlen)
-    np.save("data/dev_feats.npy", dev_feats)
-    np.save("data/dev_featlen.npy", dev_featlen)
-    np.save("data/train_chars.npy", train_chars)
-    np.save("data/train_charlen.npy", train_charlen)
-    np.save("data/dev_chars.npy", dev_chars)
-    np.save("data/dev_charlen.npy", dev_charlen)
+    if not os.path.exists(args.feat_path):
+        os.makedirs(args.feat_path)
+    np.save("data/features/train_feats.npy", train_feats)    
+    np.save("data/features/train_featlen.npy", train_featlen)
+    np.save("data/features/dev_feats.npy", dev_feats)
+    np.save("data/features/dev_featlen.npy", dev_featlen)
+    np.save("data/features/train_chars.npy", train_chars)
+    np.save("data/features/train_charlen.npy", train_charlen)
+    np.save("data/features/dev_chars.npy", dev_chars)
+    np.save("data/features/dev_charlen.npy", dev_charlen)
 
 # Clip text length to predefined decoding steps
 # train
@@ -87,16 +89,16 @@ las =  LAS(args, Listener, Speller, char2id, id2char)
 # build batch iterator
 print("Build batch iterator...")
 train_iter, num_train_batches = batch_gen(
-            train_feats, train_chars, train_featlen, train_charlen, args.batch_size, args.feat_dim, args.dec_steps, shuffle=True)
+            train_feats, train_chars, train_featlen, train_charlen, args.batch_size, args.feat_dim, shuffle=True)
 dev_iter, num_dev_batches = batch_gen(
-            dev_feats, dev_chars, dev_featlen, dev_charlen, args.batch_size, args.feat_dim, args.dec_steps, shuffle=False)
+            dev_feats, dev_chars, dev_featlen, dev_charlen, args.batch_size, args.feat_dim, shuffle=False)
 train_xs, train_ys = train_iter.get_next()
 dev_xs, dev_ys = dev_iter.get_next()
 
 # build train, inference graph 
 print("Build train, inference graph (please wait)...")
 loss, train_op, global_step, logits = las.train(train_xs, train_ys)
-logits, y_hat  = las.inference(dev_xs, dev_ys)
+logits, y_hat = las.inference(dev_xs, dev_ys)
 sample = convert_idx_to_token_tensor(y_hat[0], id2char)
 
 # saver

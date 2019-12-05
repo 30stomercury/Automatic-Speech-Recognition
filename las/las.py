@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from las.utils_v2 import *
+from las.utils import *
 
 class Listener:
 
@@ -60,7 +60,7 @@ class Speller:
         t, dec_state, prev_char, output = \
                     tf.while_loop(is_stop, iteration, [init_t, dec_state, prev_char, output], shape_invariant)
         
-        logits = output[1:]
+        logits = output[:, 1:, :]
 
         return logits
 

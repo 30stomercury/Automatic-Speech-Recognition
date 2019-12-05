@@ -137,7 +137,7 @@ def lookup_dicts(special_chars):
         id2char[i] = c
     return char2id, id2char
 
-def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim, max_charlen, shuffle=True):
+def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  shuffle=True):
     """
     Returns:
         iter: Batch iterator.
@@ -171,7 +171,7 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim, max_charlen,
                 len_batch1 = featlen_[i:i+batch_size]
                 len_batch2 = charlen_[i:i+batch_size]
                 max_len1 = max(len_batch1)
-                max_len2 = max_charlen
+                max_len2 = max(len_batch2)
             # Padding
             x_feat, x_char = x
             padded_feat = np.zeros([max_len1 - x_feat.shape[0], x_feat.shape[1]], dtype=np.float32)

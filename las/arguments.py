@@ -34,6 +34,10 @@ def parse_args():
                         type=str, 
                         default='fbank', 
                         help='Log-mel filter bank.')
+    parser.add_argument('--feat_path', 
+                        type=str, 
+                        default='./data/features', 
+                        help='Path to save features.')
     # training arguments
     parser.add_argument('--is_training', 
                         type=str2bool, 
