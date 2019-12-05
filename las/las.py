@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from las.utils import *
+from las.utils_v2 import *
 
 class Listener:
 
@@ -25,14 +25,14 @@ class Speller:
         self._build_char_embeddings()
 
     def __call__(self, enc_out, enc_len, dec_steps, teacher):
-        #prev_char = tf.nn.embedding_lookup(
-        #                self.embedding_matrix, tf.ones(self.args.batch_size, dtype=tf.int32))
+
         prev_char = tf.nn.embedding_lookup(
                         self.embedding_matrix, tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
         dec_state = self.dec_cell.zero_state(tf.shape(enc_out)[0], tf.float32)
-        output = []
-        atten = []
-        for t in range(dec_steps):
+        init_t = tf.constant(0, dtype=tf.int32)
+        maxlen = tf.shape(teacher)[1]
+        output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
+        def iteration(t, dec_state, prev_char, output):
             cur_char, dec_state, alphas = self.decode(enc_out, enc_len, dec_state, prev_char)
             if self.args.teacher_forcing:
                 prev_char = tf.nn.embedding_lookup(
@@ -41,12 +41,28 @@ class Speller:
                 prev_char = tf.nn.embedding_lookup(
                         self.embedding_matrix, tf.argmax(cur_char, -1))
             prev_char = tf.nn.dropout(prev_char, self.args.keep_proba)
-            if tf.reduce_sum(cur_char, 1) == self.char2id["<PAD>"]: break
 
-            output.append(cur_char)
-            atten.append(alphas)
-        logits = tf.stack(output, axis=1)
-        return logits, atten
+            cur_char = tf.expand_dims(cur_char, 1)
+            output = tf.concat([output, cur_char], 1)
+
+            return t + 1, dec_state, prev_char, output
+
+        def is_stop(t, *args):
+            return t < maxlen
+        # define shape of tensors in iteration
+        shape_state = ()
+        for l in range(self.args.num_dec_layers): shape_state += (tf.TensorShape([None, None]),) 
+        shape_invariant = [init_t.get_shape(), 
+                           shape_state,
+                           prev_char.get_shape(), 
+                           tf.TensorShape([None, None, self.args.vocab_size])]
+
+        t, dec_state, prev_char, output = \
+                    tf.while_loop(is_stop, iteration, [init_t, dec_state, prev_char, output], shape_invariant)
+        
+        logits = output[1:]
+
+        return logits
 
     def decode(self, enc_out, enc_len, dec_state, prev_char):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
@@ -119,8 +135,7 @@ class LAS:
         self.speller.args.is_training = True
         # encoder decoder network
         h, enc_state, enc_len = self.listener(audio, audiolen)
-        logits, alphas = self.speller(
-                            h, enc_len, self.args.dec_steps, y)
+        logits  = self.speller(h, enc_len, self.args.dec_steps, y)
         # compute loss
         loss = self.get_loss(logits, y, charlen)
         global_step = tf.train.get_or_create_global_step()
@@ -150,11 +165,10 @@ class LAS:
         self.speller.args.is_training = False
         # encoder decoder network
         h, enc_state, enc_len = self.listener(audio, audiolen)
-        logits, alphas = self.speller(
-                            h, enc_len, self.args.dec_steps, y)
+        logits  = self.speller(h, enc_len, self.args.dec_steps, y)
         y_hat = tf.argmax(logits, -1)
 
-        return logits, y_hat, alphas
+        return logits, y_hat
 
     def debug(self, xs, ys):
         audio, audio_len = xs

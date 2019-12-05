@@ -30,10 +30,14 @@ def attention(h, char, hidden_size, embedding_size, seq_len):
         T = tf.shape(h)[1]
         char_tile = tf.tile(tf.expand_dims(char, 1), [1, T, 1])
         # Trainable parameters
-        W_h = tf.Variable(tf.random_normal([hidden_size, attention_size], stddev=0.1))
-        W_c = tf.Variable(tf.random_normal([embedding_size, attention_size], stddev=0.1))
-        b = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
-        u = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
+        init_h = lambda: tf.random_normal([hidden_size, attention_size], stddev=0.1)
+        init_c = lambda: tf.random_normal([embedding_size, attention_size], stddev=0.1)
+        init_b = lambda: tf.random_normal([attention_size], stddev=0.1)
+        init_u = lambda: tf.random_normal([attention_size], stddev=0.1)
+        W_h = tf.Variable(init_h)
+        W_c = tf.Variable(init_c)
+        b = tf.Variable(init_b)
+        u = tf.Variable(init_u)
         v = tf.nn.tanh(
                 tf.tensordot(h, W_h, axes=1) + tf.tensordot(char_tile, W_c, axes=1) + b)
         vu = tf.tensordot(v, u, axes=1)
