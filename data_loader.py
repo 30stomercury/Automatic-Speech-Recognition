@@ -191,7 +191,7 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=T
                                              output_types=types, 
                                              output_shapes=shapes)
     dataset.batch(batch_size).prefetch(1)
-    if shuffle:
+    if shuffle_batches:
         dataset = dataset.shuffle(batch_size*64)
     dataset = dataset.repeat() 
     iter = dataset.make_initializable_iterator()
