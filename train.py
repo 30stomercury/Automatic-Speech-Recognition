@@ -89,9 +89,9 @@ las =  LAS(args, Listener, Speller, char2id, id2char)
 # build batch iterator
 print("Build batch iterator...")
 train_iter, num_train_batches = batch_gen(
-            train_feats, train_chars, train_featlen, train_charlen, args.batch_size, args.feat_dim, shuffle=True)
+            train_feats, train_chars, train_featlen, train_charlen, args.batch_size, args.feat_dim, args.bucketing, shuffle_batches=True)
 dev_iter, num_dev_batches = batch_gen(
-            dev_feats, dev_chars, dev_featlen, dev_charlen, args.batch_size, args.feat_dim, shuffle=False)
+            dev_feats, dev_chars, dev_featlen, dev_charlen, args.batch_size, args.feat_dim, args.bucketing, shuffle_batches=False)
 train_xs, train_ys = train_iter.get_next()
 dev_xs, dev_ys = dev_iter.get_next()
 

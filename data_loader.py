@@ -137,7 +137,7 @@ def lookup_dicts(special_chars):
         id2char[i] = c
     return char2id, id2char
 
-def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  shuffle=True):
+def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=True, shuffle_batches=True):
     """
     Returns:
         iter: Batch iterator.
@@ -154,13 +154,14 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  shuffle=Tru
         buff_feats = []
         buff_chars = []
 
-        if shuffle:
+        if not bucketing:
             rand_idx = np.random.permutation(len(feats))
             feats_, featlen_  = feats[rand_idx], featlen[rand_idx]
             chars_, charlen_  = chars[rand_idx], charlen[rand_idx]
         else:
-            feats_, featlen_ = feats, featlen
-            chars_, charlen_ = chars, charlen
+            sort_idx = featlen.argsort()
+            feats_, featlen_ = feats[sort_idx], featlen[sort_idx]
+            chars_, charlen_ = chars[sort_idx], charlen[sort_idx]
             
         for i, x in enumerate(zip(feats_, chars_)):
             if i % batch_size == 0 and buff_feats and buff_chars:
@@ -190,7 +191,8 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  shuffle=Tru
                                              output_types=types, 
                                              output_shapes=shapes)
     dataset.batch(batch_size).prefetch(1)
-    dataset = dataset.shuffle(batch_size*64)
+    if shuffle:
+        dataset = dataset.shuffle(batch_size*64)
     dataset = dataset.repeat() 
     iter = dataset.make_initializable_iterator()
     return iter, num_batches

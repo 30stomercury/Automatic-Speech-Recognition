@@ -43,6 +43,10 @@ def parse_args():
                         type=str2bool, 
                         default=True, 
                         help='Whether model is in training phase.')
+    parser.add_argument('--bucketing', 
+                        type=str2bool, 
+                        default=True, 
+                        help='Apply bucketing.')
     parser.add_argument('--batch_size', 
                         '-bs',
                         type=int, 
