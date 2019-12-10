@@ -36,18 +36,6 @@ class Speller:
         def iteration(t, dec_state, prev_char, output):
             cur_char, dec_state, alphas = self.decode(enc_out, enc_len, dec_state, prev_char)
             if self.args.is_training:
-                """
-                if self.args.teacher_forcing_rate > np.random.uniform(0, 1, [1]):
-                    # teacher forcing
-                    prev_char = tf.nn.embedding_lookup(
-                            self.embedding_matrix, teacher[:, t])
-                else:
-                    # sample from categorical distribution
-                    dist = tf.distributions.Categorical(logits=cur_char)
-                    sample = dist.sample(int(1))
-                    prev_char = tf.nn.embedding_lookup(
-                            self.embedding_matrix, sample)
-                """
                 condition = self.args.teacher_forcing_rate < tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
                 prev_char = tf.cond(condition,
                                     lambda: self.teacher_forcing(teacher[:, t]), # => teacher forcing
