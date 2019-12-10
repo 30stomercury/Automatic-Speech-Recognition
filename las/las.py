@@ -43,7 +43,7 @@ class Speller:
                 prev_char = tf.nn.dropout(prev_char, self.args.keep_proba)
                 prev_char.set_shape([None, self.args.embedding_size])
             else:
-                prev_char = tf.nn.embedding_lookup(
+                prev_char = tf.nn.embedding_lookup(                              # => inference mode, greedy decoder.
                         self.embedding_matrix, tf.argmax(cur_char, -1))
 
             cur_char = tf.expand_dims(cur_char, 1)
