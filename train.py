@@ -84,6 +84,7 @@ dev_chars = dev_chars[index]
 dev_charlen = dev_charlen[index]
 
 # init model 
+args.vocab_size = len(char2id)
 las =  LAS(args, Listener, Speller, char2id, id2char)
 
 # build batch iterator
