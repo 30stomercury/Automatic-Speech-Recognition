@@ -99,10 +99,10 @@ def parse_args():
                         type=int,
                         default=300,
                         help='The decoding steps of char sequence.')
-    parser.add_argument('--teacher_forcing',
-                        type=str2bool,
-                        default=True,
-                        help='Apply teacher forcing in decoder while training.')
+    parser.add_argument('--teacher_forcing_rate',
+                        type=float,
+                        default=0.1,
+                        help='Apply teacher forcing in decoder while training with constant sample rate.')
     # save path
     parser.add_argument('--result_path',
                         type=str,

@@ -32,15 +32,31 @@ class Speller:
         init_t = tf.constant(0, dtype=tf.int32)
         maxlen = tf.shape(teacher)[1]
         output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
+
         def iteration(t, dec_state, prev_char, output):
             cur_char, dec_state, alphas = self.decode(enc_out, enc_len, dec_state, prev_char)
-            if self.args.teacher_forcing:
-                prev_char = tf.nn.embedding_lookup(
-                        self.embedding_matrix, teacher[:, t])
+            if self.args.is_training:
+                """
+                if self.args.teacher_forcing_rate > np.random.uniform(0, 1, [1]):
+                    # teacher forcing
+                    prev_char = tf.nn.embedding_lookup(
+                            self.embedding_matrix, teacher[:, t])
+                else:
+                    # sample from categorical distribution
+                    dist = tf.distributions.Categorical(logits=cur_char)
+                    sample = dist.sample(int(1))
+                    prev_char = tf.nn.embedding_lookup(
+                            self.embedding_matrix, sample)
+                """
+                condition = self.args.teacher_forcing_rate < tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+                prev_char = tf.cond(condition,
+                                    lambda: self.teacher_forcing(teacher[:, t]), # => teacher forcing
+                                    lambda: self.sample(cur_char))               # => sample from categorical distribution
+                prev_char = tf.nn.dropout(prev_char, self.args.keep_proba)
+                prev_char.set_shape([None, self.args.embedding_size])
             else:
                 prev_char = tf.nn.embedding_lookup(
                         self.embedding_matrix, tf.argmax(cur_char, -1))
-            prev_char = tf.nn.dropout(prev_char, self.args.keep_proba)
 
             cur_char = tf.expand_dims(cur_char, 1)
             output = tf.concat([output, cur_char], 1)
@@ -79,7 +95,17 @@ class Speller:
                             self.args.vocab_size, use_bias=True)
             cur_char = tf.nn.dropout(cur_char, self.args.keep_proba)
             return cur_char, dec_state, alphas
-    
+   
+    def teacher_forcing(self, cur_char):
+        return tf.nn.embedding_lookup(
+                    self.embedding_matrix, cur_char)
+
+    def sample(self, cur_char):
+        """Sample charactor from char distribution."""
+        dist = tf.distributions.Categorical(logits=cur_char)
+        sample = dist.sample(int(1))[0]
+        return tf.nn.embedding_lookup(
+                    self.embedding_matrix, sample)
 
     def _build_decoder_cell(self):
         def rnn_cell():
@@ -118,10 +144,10 @@ class LAS:
         ''' Buid decoder encoder network, compute loss.
         Args:
             xs: a tuple of 
-                - audio:     (B, T1, D), T1: padded feature timesteps.
+                - audio:    (B, T1, D), T1: padded feature timesteps.
                 - audiolen: (B,), original feature length.
             ys: 
-                - y:         (B, T2), T2: output time steps.
+                - y:        (B, T2), T2: output time steps.
                 - charlen:  (B,), original character length.
         Returns: 
             loss
