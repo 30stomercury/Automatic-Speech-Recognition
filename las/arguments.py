@@ -95,10 +95,14 @@ def parse_args():
                         type=int,
                         default=128,
                         help='The dimension of the embedding matrix is: [vocab_size, embedding_size].')
-    parser.add_argument('--dec_steps',
+    parser.add_argument('--maxlen',
                         type=int,
-                        default=300,
-                        help='The decoding steps of char sequence.')
+                        default=400,
+                        help='Max length of char sequences in training.')
+    parser.add_argument('--convert_rate',
+                        type=float,
+                        default=0.166,
+                        help='Convert the length of audio estimate the length of chars.')
     parser.add_argument('--teacher_forcing_rate',
                         type=float,
                         default=0.1,
@@ -112,7 +116,10 @@ def parse_args():
                         type=str,
                         default='./model/las',
                         help='Save trained model.')
-
+    parser.add_argument('--summary_path',
+                        type=str,
+                        default='./summary',
+                        help='Save summary.')
 
     args = parser.parse_args()
 

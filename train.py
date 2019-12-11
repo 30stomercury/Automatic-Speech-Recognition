@@ -3,6 +3,7 @@ from las.arguments import *
 from las.las import *
 from data_loader import *
 import os
+import sys
 import numpy as np
 import tensorflow as tf
 
@@ -71,17 +72,11 @@ except:
 
 # Clip text length to predefined decoding steps
 # train
-index = train_charlen < args.dec_steps
+index = train_charlen < args.maxlen
 train_feats = train_feats[index]
 train_featlen = train_featlen[index]
 train_chars = train_chars[index]
 train_charlen = train_charlen[index]
-# dev
-index = dev_charlen < args.dec_steps
-dev_feats = dev_feats[index]
-dev_featlen = dev_featlen[index]
-dev_chars = dev_chars[index]
-dev_charlen = dev_charlen[index]
 
 # init model 
 args.vocab_size = len(char2id)
@@ -98,8 +93,8 @@ dev_xs, dev_ys = dev_iter.get_next()
 
 # build train, inference graph 
 print("Build train, inference graph (please wait)...")
-loss, train_op, global_step, logits = las.train(train_xs, train_ys)
-logits, y_hat = las.inference(dev_xs, dev_ys)
+loss, train_op, global_step, logits, train_summary = las.train(train_xs, train_ys)
+logits, y_hat = las.inference(dev_xs)
 sample = convert_idx_to_token_tensor(y_hat[0], id2char)
 
 # saver
@@ -118,13 +113,22 @@ else:
 sess.run(train_iter.initializer)
 sess.run(dev_iter.initializer)
 
+# summary
+summary_writer = tf.summary.FileWriter(args.summary_path, sess.graph)
+
+# info
+print("INFO: Training command:"," ".join(sys.argv))
+print("INFO: Total parameters:",np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
+
 # training
 training_steps = num_train_batches * args.epoch
-print("Total num train batches:", num_train_batches)
+print("INFO: Total num train batches:", num_train_batches)
+print("Training...")
 loss_ = []
 for step in range(training_steps):
-    batch_loss, gs, _ = sess.run([loss, global_step, train_op])
+    batch_loss, gs, _, summary_ = sess.run([loss, global_step, train_op, train_summary])
     print("num_step: {}, loss: {}".format(gs, batch_loss))
+    summary_writer.add_summary(summary_, gs)
     loss_.append(batch_loss)
     if gs and gs % num_train_batches == 0:
         ave_loss = np.mean(loss_)
@@ -134,6 +138,8 @@ for step in range(training_steps):
         saver.save(sess, args.save_path+"/las_E{}".format(e_), global_step=gs)        
         
         # eval
+        print("Inference...")
         texts = get_texts(y_hat, sess, num_dev_batches, id2char) 
         with open(args.result_path+"/texts_E{}.txt".format(e_), 'w') as fout:
             fout.write("\n".join(texts))
+summary_writer.close()
