@@ -39,10 +39,6 @@ def parse_args():
                         default='./data/features', 
                         help='Path to save features.')
     # training arguments
-    parser.add_argument('--is_training', 
-                        type=str2bool, 
-                        default=True, 
-                        help='Whether model is in training phase.')
     parser.add_argument('--bucketing', 
                         type=str2bool, 
                         default=True, 
@@ -60,10 +56,10 @@ def parse_args():
                         type=float, 
                         default=5, 
                         help='Apply gradient clipping.')
-    parser.add_argument('--keep_proba', 
+    parser.add_argument('--dropout_rate', 
                         type=float, 
                         default=0.5, 
-                        help='The keep probability of drop out.')
+                        help='The probability of drop out.')
     parser.add_argument('--epoch', 
                         type=int, 
                         default=10, 

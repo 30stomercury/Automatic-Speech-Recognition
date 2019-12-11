@@ -8,10 +8,10 @@ class Listener:
     def __init__(self, args):
         self.args = args
 
-    def __call__(self, inputs, audio_len):
+    def __call__(self, inputs, audio_len, is_training=True):
         with tf.variable_scope("Listener", reuse=tf.AUTO_REUSE):
             enc_out, enc_state, enc_len = pblstm(
-                inputs, audio_len, self.args.num_enc_layers, self.args.enc_units, self.args.keep_proba, self.args.is_training)
+                inputs, audio_len, self.args.num_enc_layers, self.args.enc_units, self.args.dropout_rate, is_training)
         return enc_out, enc_state, enc_len
 
 class Speller:
@@ -24,7 +24,7 @@ class Speller:
         self._build_decoder_cell()
         self._build_char_embeddings()
 
-    def __call__(self, enc_out, enc_len, dec_steps, teacher=None):
+    def __call__(self, enc_out, enc_len, dec_steps, teacher=None, is_training=True):
 
         with tf.variable_scope("Speller", reuse=tf.AUTO_REUSE):
             prev_char = tf.nn.embedding_lookup(
@@ -35,13 +35,13 @@ class Speller:
 
             # define loop
             def iteration(t, dec_state, prev_char, output):
-                cur_char, dec_state, alphas = self.decode(enc_out, enc_len, dec_state, prev_char)
-                if self.args.is_training:
+                cur_char, dec_state, alphas = self.decode(enc_out, enc_len, dec_state, prev_char, is_training)
+                if is_training:
                     condition = self.args.teacher_forcing_rate < tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
                     prev_char = tf.cond(condition,
                                         lambda: self.look_up(teacher[:, t]),      # => teacher forcing
                                         lambda: self.sample(cur_char))            # => sample from categorical distribution
-                    prev_char = tf.nn.dropout(prev_char, self.args.keep_proba)
+                    prev_char = tf.layers.dropout(prev_char, self.args.dropout_rate, training=is_training)
                     prev_char.set_shape([None, self.args.embedding_size])
                 else:
                     prev_char = self.look_up(tf.argmax(cur_char, -1))             # => inference mode, greedy decoder.
@@ -71,7 +71,7 @@ class Speller:
 
         return logits
 
-    def decode(self, enc_out, enc_len, dec_state, prev_char):
+    def decode(self, enc_out, enc_len, dec_state, prev_char, is_training):
         with tf.variable_scope("decode", reuse=tf.AUTO_REUSE):
             context, alphas = attention(h=enc_out, 
                                         char=prev_char, 
@@ -84,7 +84,7 @@ class Speller:
             cur_char = tf.layers.dense(
                             dec_out, 
                             self.args.vocab_size, use_bias=True)
-            cur_char = tf.nn.dropout(cur_char, self.args.keep_proba)
+            cur_char = tf.layers.dropout(cur_char, self.args.dropout_rate, training=is_training)
             return cur_char, dec_state, alphas
 
     def look_up(self, char):
@@ -146,9 +146,6 @@ class LAS:
         '''
         audio, audiolen = xs
         y, charlen = ys
-        # training phase
-        self.listener.args.is_training = True
-        self.speller.args.is_training = True
         # encoder decoder network
         h, enc_state, enc_len = self.listener(audio, audiolen)
         dec_steps = tf.shape(y)[1] # => time steps in this batch
@@ -183,15 +180,12 @@ class LAS:
 
     def inference(self, xs):
         audio, audiolen = xs
-        # inference phase
-        self.listener.args.is_training = False
-        self.speller.args.is_training = False
         # encoder decoder network
-        h, enc_state, enc_len = self.listener(audio, audiolen)
+        h, enc_state, enc_len = self.listener(audio, audiolen, is_training=False)
         dec_steps = tf.multiply(self.args.convert_rate, 
                                     tf.to_float(tf.reduce_max(audiolen)))
         dec_steps = tf.to_int32(dec_steps)
-        logits  = self.speller(h, enc_len, dec_steps)
+        logits  = self.speller(h, enc_len, dec_steps, is_training=False)
         y_hat = tf.argmax(logits, -1)
 
         return logits, y_hat

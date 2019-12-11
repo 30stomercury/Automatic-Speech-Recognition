@@ -50,7 +50,7 @@ def attention(h, char, hidden_size, embedding_size, seq_len):
         out = tf.reduce_sum(h * tf.expand_dims(alphas, -1), 1)
     return out, alphas
 
-def lstm(inputs, num_layers, cell_units, keep_proba, is_training):
+def lstm(inputs, num_layers, cell_units, dropout_rate, is_training):
     def rnn_cell():
         # lstm cell
         return tf.contrib.rnn.BasicRNNCell(cell_units)
@@ -61,6 +61,7 @@ def lstm(inputs, num_layers, cell_units, keep_proba, is_training):
         cell = rnn_cell()
     # when training, add dropout to regularize.
     if is_training == True:
+        keep_proba = 1 - dropout_rate
         cell = tf.nn.rnn_cell.DropoutWrapper(cell,
                                              input_keep_prob=keep_proba)
     else:
@@ -72,7 +73,7 @@ def lstm(inputs, num_layers, cell_units, keep_proba, is_training):
                                    dtype=tf.float32) 
     return outputs, states
 
-def blstm(inputs, cell_units, keep_proba, is_training):
+def blstm(inputs, cell_units, dropout_rate, is_training):
     def rnn_cell():
         # lstm cell
         return tf.contrib.rnn.BasicRNNCell(cell_units)
@@ -82,6 +83,7 @@ def blstm(inputs, cell_units, keep_proba, is_training):
     bw_cell = rnn_cell()
     # when training, add dropout to regularize.
     if is_training == True:
+        keep_proba = 1 - dropout_rate
         fw_cell = tf.nn.rnn_cell.DropoutWrapper(fw_cell,
                                                 input_keep_prob=keep_proba)
         bw_cell = tf.nn.rnn_cell.DropoutWrapper(bw_cell,
@@ -99,18 +101,18 @@ def blstm(inputs, cell_units, keep_proba, is_training):
                                                       time_major=False)
     return outputs, states
 
-def pblstm(inputs, audio_len, num_layers, cell_units, keep_proba, is_training):
+def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training):
     batch_size = tf.shape(inputs)[0]
     # a BLSTM layer
     with tf.variable_scope('blstm'):
-        rnn_out, _ = blstm(inputs, cell_units, keep_proba, is_training)
+        rnn_out, _ = blstm(inputs, cell_units, dropout_rate, is_training)
         rnn_out = tf.concat(rnn_out, -1)        
         cell_units = cell_units*2
     # Pyramid BLSTM layers
     for l in range(num_layers):
         with tf.variable_scope('pyramid_blstm_{}'.format(l)):
             rnn_out, states = blstm(
-                    rnn_out, cell_units, keep_proba, is_training)
+                    rnn_out, cell_units, dropout_rate, is_training)
             rnn_out = tf.concat(rnn_out, -1)        
             # Eq (5) in Listen, Attend and Spell
             T = tf.shape(rnn_out)[1]
