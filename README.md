@@ -12,6 +12,11 @@ source venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
+### Tensorboard
+```
+tensorboard --logdir ./summary
+```
+
 ### TODO
 - [ ] Remove teacher in inference.  
 - [ ] Calculate audio length to char length conversion rate.  
