@@ -114,7 +114,7 @@ def process_texts(special_chars, texts):
     for sentence in texts:
         sentence = sentence.translate(str.maketrans('', '', string.punctuation))
         char_converted = [char2id[char] if char != ' ' else char2id['<SPACE>'] for char in list(sentence)]
-        chars.append([char2id['<SOS>']] + char_converted + [char2id['<EOS>']])
+        chars.append(char_converted + [char2id['<EOS>']])
         charlen.append(len(chars[-1]))
 
     return np.array(chars), np.array(charlen).astype(np.int32), char2id, id2char
