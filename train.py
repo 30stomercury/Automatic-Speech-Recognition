@@ -77,7 +77,6 @@ train_feats = train_feats[index]
 train_featlen = train_featlen[index]
 train_chars = train_chars[index]
 train_charlen = train_charlen[index]
-print([len(i) for i in train_feats])
 
 # init model 
 args.vocab_size = len(char2id)
@@ -88,7 +87,7 @@ print("Build batch iterator...")
 train_iter, num_train_batches = batch_gen(
             train_feats, train_chars, train_featlen, train_charlen, args.batch_size, args.feat_dim, args.bucketing, shuffle_batches=True)
 dev_iter, num_dev_batches = batch_gen(
-            dev_feats, dev_chars, dev_featlen, dev_charlen, args.batch_size, args.feat_dim, args.bucketing, shuffle_batches=False)
+            dev_feats, dev_chars, dev_featlen, dev_charlen, args.batch_size, args.feat_dim, True, shuffle_batches=False)
 train_xs, train_ys = train_iter.get_next()
 dev_xs, dev_ys = dev_iter.get_next()
 
@@ -128,13 +127,13 @@ print("Training...")
 loss_ = []
 for step in range(training_steps):
     batch_loss, gs, _, summary_ = sess.run([loss, global_step, train_op, train_summary])
-    print("num_step: {}, loss: {}".format(gs, batch_loss))
+    print("INFO: num_step: {}, loss: {}".format(gs, batch_loss))
     summary_writer.add_summary(summary_, gs)
     loss_.append(batch_loss)
     if gs and gs % num_train_batches == 0:
         ave_loss = np.mean(loss_)
         e_ =  gs // num_train_batches
-        print("num epoch: {}, num_step: {}, ave loss: {}, wer: {}".format(
+        print("INFO: num epoch: {}, num_step: {}, ave loss: {}, wer: {}".format(
                                                 e_, gs, ave_loss, 0))
         saver.save(sess, args.save_path+"/las_E{}".format(e_), global_step=gs)        
         
@@ -143,4 +142,6 @@ for step in range(training_steps):
         texts = get_texts(y_hat, sess, num_dev_batches, id2char) 
         with open(args.result_path+"/texts_E{}.txt".format(e_), 'w') as fout:
             fout.write("\n".join(texts))
+    if gs % 200 == 0:
+        print("INFO: Sample utt | ", sess.run(sample))
 summary_writer.close()
