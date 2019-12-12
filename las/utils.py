@@ -131,9 +131,20 @@ def convert_idx_to_token_tensor(inputs, id2char):
         https://github.com/Kyubyong/transformer/blob/master/utils.py
     """
     def my_func(inputs):
-        return "".join(id2char[elem] for elem in inputs)
+        sent = "".join(id2char[elem] for elem in inputs)
+        sent = sent.split("<EOS>")[0].strip()
+        sent = sent.replace("<SPACE>", " ")
+        return " ".join(sent.split())
 
     return tf.py_func(my_func, [inputs], tf.string)
+
+def convert_idx_to_string(inputs, id2char):
+    """Converts int32 ndarray to string."""
+
+    sent =  "".join(id2char[elem] for elem in inputs)
+    sent = sent.split("<EOS>")[0].strip()
+    sent = sent.replace("<SPACE>", " ") 
+    return " ".join(sent.split())
 
 def get_texts(y_hat, sess, num_batches, id2char):
     output_id = []

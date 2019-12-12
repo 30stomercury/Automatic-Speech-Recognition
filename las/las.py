@@ -162,9 +162,14 @@ class LAS:
         else:
             train_op = optimizer.minimize(loss, global_step=global_step)
 
+        # sample one utt
+        sample = convert_idx_to_token_tensor(tf.argmax(logits, -1)[0], self.id2char)
+        gt = convert_idx_to_token_tensor(y[0], self.id2char)
         # summary
         tf.summary.scalar("loss", loss)
         tf.summary.scalar("global_step", global_step)
+        tf.summary.text("sample_prediction", sample)
+        tf.summary.text("ground_truth", gt)
 
         summaries = tf.summary.merge_all()
 

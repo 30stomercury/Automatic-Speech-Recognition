@@ -40,9 +40,15 @@ try:
 # process features
 except:
     print("Process train/dev features...")
+    # texts
     special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     train_chars, train_charlen, char2id, id2char = process_texts(special_chars, train_texts)
     dev_chars, dev_charlen, _, _ = process_texts(special_chars, dev_texts)
+    np.save("data/features/train_chars.npy", train_chars)
+    np.save("data/features/train_charlen.npy", train_charlen)
+    np.save("data/features/dev_chars.npy", dev_chars)
+    np.save("data/features/dev_charlen.npy", dev_charlen)
+    # audios
     train_feats, train_featlen = process_audio(train_audio_path, 
                                                sess, 
                                                prepro_batch=100,
@@ -65,10 +71,6 @@ except:
     np.save("data/features/train_featlen.npy", train_featlen)
     np.save("data/features/dev_feats.npy", dev_feats)
     np.save("data/features/dev_featlen.npy", dev_featlen)
-    np.save("data/features/train_chars.npy", train_chars)
-    np.save("data/features/train_charlen.npy", train_charlen)
-    np.save("data/features/dev_chars.npy", dev_chars)
-    np.save("data/features/dev_charlen.npy", dev_charlen)
 
 # Clip text length to predefined decoding steps
 # train
@@ -136,12 +138,14 @@ for step in range(training_steps):
         print("INFO: num epoch: {}, num_step: {}, ave loss: {}, wer: {}".format(
                                                 e_, gs, ave_loss, 0))
         saver.save(sess, args.save_path+"/las_E{}".format(e_), global_step=gs)        
-        
         # eval
         print("Inference...")
         texts = get_texts(y_hat, sess, num_dev_batches, id2char) 
         with open(args.result_path+"/texts_E{}.txt".format(e_), 'w') as fout:
             fout.write("\n".join(texts))
     if gs % 200 == 0:
-        print("INFO: Sample utt | ", sess.run(sample))
+        sample_utt, gt = sess.run([sample, dev_ys])
+        sample_utt = sample_utt.decode()
+        gt_utt = convert_idx_to_string(gt[0][0], id2char)
+        print("INFO: Sample utt | sample: {} | groundtruth: {}.".format(sample_utt, gt_utt))
 summary_writer.close()
