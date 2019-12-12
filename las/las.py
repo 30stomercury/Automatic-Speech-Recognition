@@ -37,10 +37,10 @@ class Speller:
             def iteration(t, dec_state, prev_char, output):
                 cur_char, dec_state, alphas = self.decode(enc_out, enc_len, dec_state, prev_char, is_training)
                 if is_training:
-                    condition = self.args.teacher_forcing_rate < tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+                    condition = self.args.teacher_forcing_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
                     prev_char = tf.cond(condition,
                                         lambda: self.look_up(teacher[:, t]),      # => teacher forcing
-                                        lambda: self.sample(cur_char))            # => sample from categorical distribution
+                                        lambda: self.sample_char(cur_char))       # => sample from categorical distribution
                     prev_char = tf.layers.dropout(prev_char, self.args.dropout_rate, training=is_training)
                     prev_char.set_shape([None, self.args.embedding_size])
                 else:
@@ -91,11 +91,11 @@ class Speller:
         return tf.nn.embedding_lookup(                                                                                                                                         
                     self.embedding_matrix, char)
 
-    def sample(self, cur_char):
+    def sample_char(self, cur_char):
         """Sample charactor from char distribution."""
         dist = tf.distributions.Categorical(logits=cur_char)
-        sample = dist.sample(int(1))[0]
-        return self.look_up(sample)
+        sampled_char = dist.sample(int(1))[0]
+        return self.look_up(sampled_char)
 
     def _build_decoder_cell(self):
         def rnn_cell():

@@ -77,6 +77,7 @@ train_feats = train_feats[index]
 train_featlen = train_featlen[index]
 train_chars = train_chars[index]
 train_charlen = train_charlen[index]
+print([len(i) for i in train_feats])
 
 # init model 
 args.vocab_size = len(char2id)
