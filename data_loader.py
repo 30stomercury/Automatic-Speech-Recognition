@@ -160,6 +160,11 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=T
             chars_, charlen_  = chars[rand_idx], charlen[rand_idx]
         else:
             sort_idx = featlen.argsort()
+            window = 1000
+            feats_, featlen_  = feats, featlen
+            chars_, charlen_  = chars, charlen
+            for i in range(len(sort_idx) // window):
+                sort_idx[i*window:(i+1)*window] = sort_idx[i*window:(i+1)*window][np.random.permutation(window)]
             feats_, featlen_ = feats[sort_idx], featlen[sort_idx]
             chars_, charlen_ = chars[sort_idx], charlen[sort_idx]
             
@@ -197,18 +202,4 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=T
     iter = dataset.make_initializable_iterator()
     return iter, num_batches
 
-if __name__ == "__main__":
-    sess = tf.Session()
-    libri_path = './data/LibriSpeech/dev-clean'
-    texts, audio_path = data_preparation(libri_path)
-    special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-    chars, charlen = process_texts(special_chars, texts)
-    X, X_len = process_audio(audio_path, sess, prepro_batch=64)
-    iter_, num_batches = batch_gen(X, chars, X_len, charlen, batch_size=32)
-    x = iter_.get_next()
-    sess.run(tf.global_variables_initializer())
-    sess.run(iter_.initializer)
-    print(num_batches)
-    for _ in range(5):
-        a, b = sess.run(x)
-        print(a[0].shape, a[1].shape, b[0].shape, b[1].shape)
+

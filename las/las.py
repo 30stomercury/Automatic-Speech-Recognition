@@ -25,7 +25,6 @@ class Speller:
         self._build_char_embeddings()
 
     def __call__(self, enc_out, enc_len, dec_steps, teacher=None, is_training=True):
-
         with tf.variable_scope("Speller", reuse=tf.AUTO_REUSE):
             prev_char = tf.nn.embedding_lookup(
                             self.embedding_matrix, tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
@@ -91,9 +90,9 @@ class Speller:
         return tf.nn.embedding_lookup(                                                                                                                                         
                     self.embedding_matrix, char)
 
-    def sample_char(self, cur_char):
+    def sample_char(self, char):
         """Sample charactor from char distribution."""
-        dist = tf.distributions.Categorical(logits=cur_char)
+        dist = tf.distributions.Categorical(logits=char)
         sampled_char = dist.sample(int(1))[0]
         return self.look_up(sampled_char)
 
