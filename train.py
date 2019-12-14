@@ -143,7 +143,7 @@ for step in range(training_steps):
         texts = get_texts(y_hat, sess, num_dev_batches, id2char) 
         with open(args.result_path+"/texts_E{}.txt".format(e_), 'w') as fout:
             fout.write("\n".join(texts))
-    if gs % 200 == 0:
+    if gs % 50 == 0:
         sample_utt, gt = sess.run([sample, dev_ys])
         sample_utt = sample_utt.decode()
         gt_utt = convert_idx_to_string(gt[0][0], id2char)

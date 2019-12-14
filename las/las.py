@@ -38,8 +38,10 @@ class Speller:
                     condition = self.args.teacher_forcing_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
                     prev_char = tf.cond(condition,
                                         lambda: self.look_up(teacher[:, t]),      # => teacher forcing
-                                        lambda: self.sample_char(cur_char))       # => sample from categorical distribution
-                    prev_char = tf.layers.dropout(prev_char, self.args.dropout_rate, training=is_training)
+                                        lambda: self.look_up(                     # => pick argmax
+                                                    tf.argmax(cur_char, -1)))     # or you can sample from dist using self.sample_char(cur_char))      
+                    prev_char = tf.layers.dropout(
+                                prev_char, self.args.dropout_rate, training=is_training)
                     prev_char.set_shape([None, self.args.embedding_size])
                 else:
                     prev_char = self.look_up(tf.argmax(cur_char, -1))             # => inference mode, greedy decoder.
@@ -54,8 +56,12 @@ class Speller:
                 return t < dec_steps
 
             # define shape of tensors in iteration
-            shape_state = ()
-            for l in range(self.args.num_dec_layers): shape_state += (tf.TensorShape([None, None]),) 
+            if self.args.num_dec_layers > 1:
+                shape_state = ()
+                for l in range(self.args.num_dec_layers): shape_state += (tf.TensorShape([None, None]),) 
+            else:
+                shape_state = tf.TensorShape([None, None])
+
             shape_invariant = [init_t.get_shape(), 
                                shape_state,
                                prev_char.get_shape(), 
@@ -70,6 +76,7 @@ class Speller:
         return logits
 
     def decode(self, enc_out, enc_len, dec_state, prev_char, is_training):
+        """One decode step."""
         with tf.variable_scope("decode", reuse=tf.AUTO_REUSE):
             context, alphas = attention(h=enc_out, 
                                         char=prev_char, 
@@ -86,6 +93,7 @@ class Speller:
             return cur_char, dec_state, alphas
 
     def look_up(self, char):
+        """lookup from pre-definded embedding"""
         return tf.nn.embedding_lookup(                                                                                                                                         
                     self.embedding_matrix, char)
 
@@ -175,7 +183,7 @@ class LAS:
 
     def get_loss(self, logits, y, charlen):
         y_ = tf.one_hot(y, self.args.vocab_size)
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y_)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_)
         mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
         loss = tf.reduce_sum(
             cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)

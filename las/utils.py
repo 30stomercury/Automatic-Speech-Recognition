@@ -161,7 +161,7 @@ def get_texts(y_hat, sess, num_batches, id2char):
         output_id += pred.tolist()
     for h in output_id:
         sent = "".join(id2char[idx] for idx in h)
-        sent = sent.split("<EOS>")[0].strip()
+        #sent = sent.split("<EOS>")[0].strip()
         sent = sent.replace("<SPACE>", " ") 
         output_char.append(" ".join(sent.split()))
 
