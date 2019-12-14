@@ -19,8 +19,7 @@ class Speller:
     def __init__(self, args, char2id):
         self.args = args
         self.char2id = char2id
-        self.hidden_size \
-                = self.args.enc_units*2*(self.args.num_enc_layers*2)**2 # => output dimension of plstm h
+        self.hidden_size = self.args.enc_units*2 # => output dimension of plstm h
         self._build_decoder_cell()
         self._build_char_embeddings()
 

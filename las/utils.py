@@ -103,11 +103,15 @@ def blstm(inputs, cell_units, dropout_rate, is_training):
 
 def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training):
     batch_size = tf.shape(inputs)[0]
+    enc_dim = cell_units*2
     # a BLSTM layer
     with tf.variable_scope('blstm'):
         rnn_out, _ = blstm(inputs, cell_units, dropout_rate, is_training)
         rnn_out = tf.concat(rnn_out, -1)        
-        cell_units = cell_units*2
+        rnn_out = tf.layers.dense(                                                                                                                                                                     
+                            rnn_out,
+                            enc_dim, use_bias=True)
+
     # Pyramid BLSTM layers
     for l in range(num_layers):
         with tf.variable_scope('pyramid_blstm_{}'.format(l)):
@@ -120,8 +124,11 @@ def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training)
             even_new = padded_out[:, ::2, :]
             odd_new = padded_out[:, 1::2, :]
             rnn_out = tf.concat([even_new, odd_new], -1)        
-            cell_units = cell_units*4
-            rnn_out = tf.reshape(rnn_out, [batch_size, -1, cell_units])
+            rnn_out = tf.reshape(rnn_out, [batch_size, -1, cell_units*4])
+            rnn_out = tf.contrib.layers.layer_norm(rnn_out)
+            rnn_out = tf.layers.dense(                                                                                                                                                                     
+                                rnn_out,
+                                enc_dim, use_bias=True)
             audio_len = (audio_len + audio_len % 2) / 2
     return rnn_out, states, audio_len
 
