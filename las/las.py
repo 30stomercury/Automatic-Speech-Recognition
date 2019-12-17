@@ -12,7 +12,7 @@ class Listener:
         with tf.variable_scope("Listener", reuse=tf.AUTO_REUSE):
             enc_out, enc_state, enc_len = pblstm(
                 inputs, audio_len, self.args.num_enc_layers, self.args.enc_units, self.args.dropout_rate, is_training)
-        return enc_out, enc_state, enc_len
+            return enc_out, enc_state, enc_len
 
 class Speller:
 
@@ -30,10 +30,9 @@ class Speller:
             dec_state = self.dec_cell.zero_state(tf.shape(enc_out)[0], tf.float32)
             init_t = tf.constant(0, dtype=tf.int32)
             output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
-
             # define loop
-            def iteration(t, dec_state, prev_char, output):
-                cur_char, dec_state, alphas = self.decode(enc_out, enc_len, dec_state, prev_char, is_training)
+            def iteration(t, rnn_state, prev_char, output):
+                cur_char, rnn_state, alphas = self.decode(enc_out, enc_len, rnn_state, prev_char, is_training)
                 if is_training:
                     condition = self.args.teacher_forcing_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
                     prev_char = tf.cond(condition,
@@ -49,7 +48,7 @@ class Speller:
                 cur_char = tf.expand_dims(cur_char, 1)
                 output = tf.concat([output, cur_char], 1)
 
-                return t + 1, dec_state, prev_char, output
+                return t + 1, rnn_state, prev_char, output
 
             # stop criteria
             def is_stop(t, *args):
@@ -73,7 +72,7 @@ class Speller:
             
             logits = output[:, 1:, :]
 
-        return logits
+            return logits
 
     def decode(self, enc_out, enc_len, dec_state, prev_char, is_training):
         """One decode step."""
@@ -153,8 +152,8 @@ class LAS:
         audio, audiolen = xs
         y, charlen = ys
         # encoder decoder network
-        h, enc_state, enc_len = self.listener(audio, audiolen)
         dec_steps = tf.shape(y)[1] # => time steps in this batch
+        h, enc_state, enc_len = self.listener(audio, audiolen)
         logits  = self.speller(h, enc_len, dec_steps, y)
         # compute loss
         loss = self.get_loss(logits, y, charlen)
@@ -200,12 +199,3 @@ class LAS:
         y_hat = tf.argmax(logits, -1)
 
         return logits, y_hat
-
-    def debug(self, xs, ys):
-        audio, audio_len = xs
-        y, char_len = ys
-        # encoder decoder network
-        h, enc_state, enc_len = self.listener(audio, audiolen)
-        logits, alphas = self.speller(
-                            h, enc_len, y.shape[-1], y)
-        return logits

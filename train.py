@@ -95,8 +95,8 @@ dev_xs, dev_ys = dev_iter.get_next()
 
 # build train, inference graph 
 print("Build train, inference graph (please wait)...")
-loss, train_op, global_step, logits, train_summary = las.train(train_xs, train_ys)
-logits, y_hat = las.inference(dev_xs)
+loss, train_op, global_step, train_logits, train_summary = las.train(train_xs, train_ys)
+dev_logits, y_hat = las.inference(dev_xs)
 sample = convert_idx_to_token_tensor(y_hat[0], id2char)
 
 # saver
@@ -120,7 +120,7 @@ summary_writer = tf.summary.FileWriter(args.summary_path, sess.graph)
 
 # info
 print("INFO: Training command:"," ".join(sys.argv))
-print("INFO: Total parameters:",np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
+print("INFO: Total weights:",np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
 
 # training
 training_steps = num_train_batches * args.epoch
@@ -128,7 +128,7 @@ print("INFO: Total num train batches:", num_train_batches)
 print("Training...")
 loss_ = []
 for step in range(training_steps):
-    batch_loss, gs, _, summary_ = sess.run([loss, global_step, train_op, train_summary])
+    batch_loss, gs, _, summary_, logits, train_gt = sess.run([loss, global_step, train_op, train_summary, train_logits, train_ys])
     print("INFO: num_step: {}, loss: {}".format(gs, batch_loss))
     summary_writer.add_summary(summary_, gs)
     loss_.append(batch_loss)
