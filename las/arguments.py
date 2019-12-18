@@ -34,6 +34,10 @@ def parse_args():
                         type=str, 
                         default='fbank', 
                         help='Log-mel filter bank.')
+    parser.add_argument('--cmvn', 
+                        type=str2bool, 
+                        default=True, 
+                        help='Apply cmvn or not.')
     parser.add_argument('--feat_path', 
                         type=str, 
                         default='./data/features', 

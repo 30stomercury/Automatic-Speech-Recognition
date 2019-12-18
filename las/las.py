@@ -36,14 +36,14 @@ class Speller:
                 if is_training:
                     condition = self.args.teacher_forcing_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
                     prev_char = tf.cond(condition,
-                                        lambda: self.look_up(teacher[:, t]),      # => teacher forcing
-                                        lambda: self.look_up(                     # => pick argmax
-                                                    tf.argmax(cur_char, -1)))     # or you can sample from dist using self.sample_char(cur_char))      
-                    prev_char = tf.layers.dropout(
-                                prev_char, self.args.dropout_rate, training=is_training)
+                                        lambda: self.look_up(teacher[:, t]),           # => teacher forcing
+                                        lambda: self.sample_char(cur_char))            # => or you can use argmax
+                                               
+                    #prev_char = tf.layers.dropout(
+                    #            prev_char, self.args.dropout_rate, training=is_training)
                     prev_char.set_shape([None, self.args.embedding_size])
                 else:
-                    prev_char = self.look_up(tf.argmax(cur_char, -1))             # => inference mode, greedy decoder.
+                    prev_char = self.look_up(tf.argmax(cur_char, -1))                  # => inference mode, greedy decoder.
 
                 cur_char = tf.expand_dims(cur_char, 1)
                 output = tf.concat([output, cur_char], 1)
@@ -88,7 +88,7 @@ class Speller:
             cur_char = tf.layers.dense(
                             dec_out, 
                             self.args.vocab_size, use_bias=True)
-            cur_char = tf.layers.dropout(cur_char, self.args.dropout_rate, training=is_training)
+            #cur_char = tf.layers.dropout(cur_char, self.args.dropout_rate, training=is_training)
             return cur_char, dec_state, alphas
 
     def look_up(self, char):
@@ -148,6 +148,7 @@ class LAS:
             loss
             train_op
             global_step
+            summaries
         '''
         audio, audiolen = xs
         y, charlen = ys
@@ -166,7 +167,6 @@ class LAS:
             train_op = optimizer.apply_gradients(zip(grad, variables), global_step=global_step)
         else:
             train_op = optimizer.minimize(loss, global_step=global_step)
-
         # sample one utt
         sample = convert_idx_to_token_tensor(tf.argmax(logits, -1)[0], self.id2char)
         gt = convert_idx_to_token_tensor(y[0], self.id2char)
@@ -190,12 +190,14 @@ class LAS:
 
     def inference(self, xs):
         audio, audiolen = xs
-        # encoder decoder network
-        h, enc_state, enc_len = self.listener(audio, audiolen, is_training=False)
+        # estimate decoding steps
         dec_steps = tf.multiply(self.args.convert_rate, 
                                     tf.to_float(tf.reduce_max(audiolen)))
         dec_steps = tf.to_int32(dec_steps)
+        # encoder decoder network
+        h, enc_state, enc_len = self.listener(audio, audiolen, is_training=False)
         logits  = self.speller(h, enc_len, dec_steps, is_training=False)
         y_hat = tf.argmax(logits, -1)
 
         return logits, y_hat
+    

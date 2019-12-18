@@ -33,13 +33,14 @@ try:
     dev_featlen = np.load("data/features/dev_featlen.npy", allow_pickle=True)
     dev_chars = np.load("data/features/dev_chars.npy", allow_pickle=True)
     dev_charlen = np.load("data/features/dev_charlen.npy", allow_pickle=True)
-
     special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     char2id, id2char = lookup_dicts(special_chars)
 
 # process features
 except:
     print("Process train/dev features...")
+    if not os.path.exists(args.feat_path):
+        os.makedirs(args.feat_path)
     # texts
     special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     train_chars, train_charlen, char2id, id2char = process_texts(special_chars, train_texts)
@@ -56,7 +57,8 @@ except:
                                                frame_step=args.frame_step,
                                                frame_length=args.frame_length,
                                                feat_dim=args.feat_dim,
-                                               feat_type=args.feat_type)
+                                               feat_type=args.feat_type,
+                                               cmvn=args.cmvn)
     dev_feats, dev_featlen = process_audio(dev_audio_path, 
                                            sess, 
                                            prepro_batch=100,
@@ -64,9 +66,8 @@ except:
                                            frame_step=args.frame_step,
                                            frame_length=args.frame_length,
                                            feat_dim=args.feat_dim,
-                                           feat_type=args.feat_type)
-    if not os.path.exists(args.feat_path):
-        os.makedirs(args.feat_path)
+                                           feat_type=args.feat_type,
+                                           cmvn=args.cmvn)
     np.save("data/features/train_feats.npy", train_feats)    
     np.save("data/features/train_featlen.npy", train_featlen)
     np.save("data/features/dev_feats.npy", dev_feats)
@@ -129,6 +130,7 @@ print("Training...")
 loss_ = []
 for step in range(training_steps):
     batch_loss, gs, _, summary_, logits, train_gt = sess.run([loss, global_step, train_op, train_summary, train_logits, train_ys])
+    print("Ground: {}\nSample: {}".format(convert_idx_to_string(np.argmax(logits, -1)[0], id2char), convert_idx_to_string(train_gt[0][0], id2char)))
     print("INFO: num_step: {}, loss: {}".format(gs, batch_loss))
     summary_writer.add_summary(summary_, gs)
     loss_.append(batch_loss)

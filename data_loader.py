@@ -28,6 +28,16 @@ def data_preparation(libri_path):
             texts.append(line[len(line_[0])+1:-1])
     return texts, audio_path
 
+def CMVN(audios):
+    # https://github.com/tensorflow/tensor2tensor/blob/master/tensor2tensor/data_generators/speech_recognition.py
+    # per utterance normalization
+    var_epsilon = 1e-09
+    mean = tf.reduce_mean(audios, keepdims=True, axis=1)
+    variance = tf.reduce_mean(tf.squared_difference(audios, mean),
+                              keepdims=True, axis=1)
+    audios = (audios - mean) * tf.rsqrt(variance + var_epsilon)
+    return audios
+
 def process_audio(audio_path, 
                   sess, 
                   prepro_batch=128, 
@@ -35,7 +45,8 @@ def process_audio(audio_path,
                   frame_step=10, 
                   frame_length=25,
                   feat_dim = 40,
-                  feat_type='fbank'):
+                  feat_type='fbank',
+                  cmvn=True):
     """GPU accerated audio features extracting in tensorflow
 
     Args:
@@ -53,12 +64,18 @@ def process_audio(audio_path,
         featlen: List of feature length.
     """    
 
+    if feat_type != "fbank":
+        raise NotImplementedError(
+                "Only support fbank.")
+
     # build extacting graph
     input_audio = tf.placeholder(dtype=tf.float32, shape=[None, None])
     if feat_type == 'fbank':
         mel_fbanks = common_audio.compute_mel_filterbank_features(
             input_audio, sample_rate=sample_rate, frame_step=frame_step, frame_length=frame_length, num_mel_bins=feat_dim, apply_mask=True)
         mel_fbanks = tf.reduce_sum(mel_fbanks, -1)
+    if cmvn:
+        mel_fbanks = CMVN(mel_fbanks)
 
     def extract_feat(audio_batch, len_batch, fs):
         max_len = max(len_batch)
