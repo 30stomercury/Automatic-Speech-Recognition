@@ -122,6 +122,7 @@ summary_writer = tf.summary.FileWriter(args.summary_path, sess.graph)
 # info
 print("INFO: Training command:"," ".join(sys.argv))
 print("INFO: Total weights:",np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
+print(tf.trainable_variables())
 
 # training
 training_steps = num_train_batches * args.epoch

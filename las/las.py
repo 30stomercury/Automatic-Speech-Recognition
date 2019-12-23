@@ -25,9 +25,8 @@ class Speller:
 
     def __call__(self, enc_out, enc_len, dec_steps, teacher=None, is_training=True):
         with tf.variable_scope("Speller", reuse=tf.AUTO_REUSE):
-            prev_char = tf.nn.embedding_lookup(
-                            self.embedding_matrix, tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
-            dec_state = self.dec_cell.zero_state(tf.shape(enc_out)[0], tf.float32)
+            prev_char = self.look_up(tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
+            init_state = self.dec_cell.zero_state(tf.shape(enc_out)[0], tf.float32)
             init_t = tf.constant(0, dtype=tf.int32)
             output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
             # define loop
@@ -39,8 +38,8 @@ class Speller:
                                         lambda: self.look_up(teacher[:, t]),           # => teacher forcing
                                         lambda: self.sample_char(cur_char))            # => or you can use argmax
                                                
-                    #prev_char = tf.layers.dropout(
-                    #            prev_char, self.args.dropout_rate, training=is_training)
+                    prev_char = tf.layers.dropout(
+                                prev_char, self.args.dropout_rate, training=is_training)
                     prev_char.set_shape([None, self.args.embedding_size])
                 else:
                     prev_char = self.look_up(tf.argmax(cur_char, -1))                  # => inference mode, greedy decoder.
@@ -68,7 +67,7 @@ class Speller:
 
             t, dec_state, prev_char, output = \
                         tf.while_loop(is_stop, iteration, 
-                            [init_t, dec_state, prev_char, output], shape_invariant)
+                            [init_t, init_state, prev_char, output], shape_invariant)
             
             logits = output[:, 1:, :]
 
@@ -88,7 +87,7 @@ class Speller:
             cur_char = tf.layers.dense(
                             dec_out, 
                             self.args.vocab_size, use_bias=True)
-            #cur_char = tf.layers.dropout(cur_char, self.args.dropout_rate, training=is_training)
+            cur_char = tf.layers.dropout(cur_char, self.args.dropout_rate, training=is_training)
             return cur_char, dec_state, alphas
 
     def look_up(self, char):
@@ -126,6 +125,8 @@ class LAS:
         '''Consturct Listen attend ande spell objects.
         Args:
             args: Include model/train/inference parameters that are packed in arguments.py
+            listener: The encoder built in pyramid rnn.
+            speller: The decoder with an attention layer.
         '''
         if not args.vocab_size:
             args.vocab = len(char2id)
@@ -157,7 +158,7 @@ class LAS:
         h, enc_state, enc_len = self.listener(audio, audiolen)
         logits  = self.speller(h, enc_len, dec_steps, y)
         # compute loss
-        loss = self.get_loss(logits, y, charlen)
+        loss = self._get_loss(logits, y, charlen)
         global_step = tf.train.get_or_create_global_step()
         optimizer = tf.train.AdamOptimizer(self.args.lr)
         # gradient clipping
@@ -180,14 +181,6 @@ class LAS:
 
         return loss, train_op, global_step, logits, summaries
 
-    def get_loss(self, logits, y, charlen):
-        y_ = tf.one_hot(y, self.args.vocab_size)
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_)
-        mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
-        loss = tf.reduce_sum(
-            cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
-        return loss
-
     def inference(self, xs):
         audio, audiolen = xs
         # estimate decoding steps
@@ -201,3 +194,10 @@ class LAS:
 
         return logits, y_hat
     
+    def _get_loss(self, logits, y, charlen):
+        y_ = tf.one_hot(y, self.args.vocab_size)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_)
+        mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
+        loss = tf.reduce_sum(
+            cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
+        return loss

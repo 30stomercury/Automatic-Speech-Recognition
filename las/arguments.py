@@ -107,6 +107,11 @@ def parse_args():
                         type=float,
                         default=0.1,
                         help='Apply teacher forcing in decoder while training with constant sample rate.')
+    # beam search
+    parser.add_argument('--beam_size',
+                        type=int,
+                        default=5,
+                        help='Size for beam search.')
     # save path
     parser.add_argument('--result_path',
                         type=str,
