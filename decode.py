@@ -81,6 +81,7 @@ else:
 for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_chars):
     xs = (np.expand_dims(audio, 0), np.expand_dims(audiolen, 0))
     beam_states = bs.decode(sess, xs)
-    print("Hyposis", convert_idx_to_string(beam_states[-1].char_ids[1:], id2char))
-    print("Ground", convert_idx_to_string(y, id2char))
+    for i in range(len(beam_states)):
+        print("Hyposis_{}|".format(i), convert_idx_to_string(beam_states[i].char_ids[1:], id2char))
+    print("Ground    |", convert_idx_to_string(y, id2char))
     print("\n")

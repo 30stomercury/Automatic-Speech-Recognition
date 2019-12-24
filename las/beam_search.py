@@ -58,7 +58,7 @@ class BeamSearch(object):
         t = 0
         # decode
         init_state = self._get_init(sess)
-        beam_set = [BeamState([self.start_id], 0, init_state)] * self.beam_size
+        beam_set = [BeamState([self.start_id], 0, init_state)] #* self.beam_size
         selected_beam_state = []
         while t < dec_step and len(selected_beam_state) < self.beam_size:
             prev_char_ids = [b.char_ids[-1] for b in beam_set]
@@ -70,9 +70,8 @@ class BeamSearch(object):
                 logits, dec_state = self._get_decode(sess, h, enc_len, prev_char_ids[i], dec_states[i])
                 topk_ids = np.argsort(logits)[-self.beam_size*2:]     # => argsort is in acending order
                 topk_probs = logits[topk_ids]
-                for j in range(self.beam_size*2):
+                for j in range(self.args.vocab_size):
                     beam_set_bank.append(beam_set[i].update(topk_ids[j], topk_probs[j], dec_state))
-                   
             beam_set = []                 
             # sort by log prob
             topk_beam_state = self._select_best_k(beam_set_bank)
@@ -83,7 +82,7 @@ class BeamSearch(object):
                     beam_set.append(b)
             t += 1
         
-        return beam_set#self._select_best_k(selected_beam_state)
+        return self._select_best_k(selected_beam_state)
 
     def _build_init(self, size):
         """get decoder initial state"""
@@ -151,7 +150,6 @@ class BeamSearch(object):
         """
         log_prob = [b.log_prob for b in beam_set]
         idx = np.argsort(log_prob)[-self.beam_size:]
-
         return [beam_set[i] for i in idx]
         
 
