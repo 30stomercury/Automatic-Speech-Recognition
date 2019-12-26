@@ -67,14 +67,17 @@ class BeamSearch(object):
          
             # collect search path from beam_size to 2*beam_size*beam_size
             for i in range(len(beam_set)):
-                logits, dec_state = self._get_decode(sess, h, enc_len, prev_char_ids[i], dec_states[i])
+                logits, dec_state = self._get_decode(
+                                        sess, h, enc_len, prev_char_ids[i], dec_states[i])
                 topk_ids = np.argsort(logits)       # => argsort is in acending order
                 topk_probs = logits[topk_ids]
                 for j in range(self.args.vocab_size):
-                    beam_set_bank.append(beam_set[i].update(topk_ids[j], topk_probs[j], dec_state))
+                    beam_set_bank.append(beam_set[i].update(
+                                        topk_ids[j], topk_probs[j], dec_state))
             beam_set = []                 
             # sort by log prob
             topk_beam_state = self._select_best_k(beam_set_bank)
+            print(dec_state[0].shape, dec_state[1].shape)
             for b in topk_beam_state:
                 if b.char_ids[-1] == self.end_id:
                     selected_beam_state.append(b)
@@ -95,17 +98,18 @@ class BeamSearch(object):
                                      shape=[None, None, self.args.feat_dim], name='audio')
         self.audiolen = tf.placeholder(tf.int32, shape=[None], name='audiolen')
         # build graph
-        self.enc_out, enc_state, self.enc_len = self.listener(self.audio, self.audiolen, is_training=False)
+        self.enc_out, enc_state, self.enc_len = \
+                        self.listener(self.audio, self.audiolen, is_training=False)
 
     def _build_decode_step(self):
         """build decoder graph"""
         # for decoder
         self.h = tf.placeholder(tf.float32,
-                                      shape=[None, None, self.args.enc_units*2], name='enc_out')
+                                shape=[None, None, self.args.enc_units*2], name='enc_out')
         self.h_len = tf.placeholder(tf.int32, shape=[None], name='enc_len')
         self.prev_char_id = tf.placeholder(tf.int32, name='char_id')
         self.rnn_state_packed = tf.placeholder(tf.float32, 
-                                    [self.args.num_dec_layers, self.args.batch_size, self.args.dec_units], name='rnn_state')
+                                [self.args.num_dec_layers, self.args.batch_size, self.args.dec_units], name='rnn_state')
         # form to tuple state
         l = tf.unstack(self.rnn_state_packed, axis=0)
         rnn_tuple_state = tuple(
@@ -134,6 +138,7 @@ class BeamSearch(object):
                     self.prev_char_id: prev_char_id,
                     self.rnn_state_packed: rnn_state_packed
                     }
+        print(rnn_state_packed[0].shape, rnn_state_packed[1].shape)
         logits, state = sess.run([self.cur_char, self.rnn_state], feed_dict)
         return logits[0], state
 
