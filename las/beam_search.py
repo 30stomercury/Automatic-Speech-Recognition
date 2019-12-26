@@ -68,7 +68,7 @@ class BeamSearch(object):
             # collect search path from beam_size to 2*beam_size*beam_size
             for i in range(len(beam_set)):
                 logits, dec_state = self._get_decode(sess, h, enc_len, prev_char_ids[i], dec_states[i])
-                topk_ids = np.argsort(logits)[-self.beam_size*2:]     # => argsort is in acending order
+                topk_ids = np.argsort(logits)       # => argsort is in acending order
                 topk_probs = logits[topk_ids]
                 for j in range(self.args.vocab_size):
                     beam_set_bank.append(beam_set[i].update(topk_ids[j], topk_probs[j], dec_state))
