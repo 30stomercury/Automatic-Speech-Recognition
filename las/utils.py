@@ -23,23 +23,28 @@ def mask(original_len, padded_len):
     mask = y <= original_len
     return tf.cast(mask, tf.float32)
 
-def attention(h, char, hidden_size, embedding_size, seq_len):
-    """Bahdanau attention"""
+def attention(h, state, h_dim, s_dim, seq_len):
+    """Bahdanau attention
+    args:
+        h: (B, T, enc_units*2), encoder output.
+        state: (B, dec_units), previous decoder hidden state.
+        h_dim: encoder units.
+        s_dim: decoder units.
+        seq_len: timesteps of sequences.
+    """
+    
     with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
-        attention_size = 16
+        attention_size = h_dim
         T = tf.shape(h)[1]
-        char_tile = tf.tile(tf.expand_dims(char, 1), [1, T, 1])
+        # tiling to (B, T, dec_units)
+        state_ = tf.expand_dims(state, 1)
+        h.set_shape([None, None, h_dim])
+        state_.set_shape([None, 1, s_dim])
         # Trainable parameters
-        init_h = lambda: tf.random_normal([hidden_size, attention_size], stddev=0.1)
-        init_c = lambda: tf.random_normal([embedding_size, attention_size], stddev=0.1)
-        init_b = lambda: tf.random_normal([attention_size], stddev=0.1)
         init_u = lambda: tf.random_normal([attention_size], stddev=0.1)
-        W_h = tf.Variable(init_h)
-        W_c = tf.Variable(init_c)
-        b = tf.Variable(init_b)
         u = tf.Variable(init_u)
         v = tf.nn.tanh(
-                tf.tensordot(h, W_h, axes=1) + tf.tensordot(char_tile, W_c, axes=1) + b)
+                tf.layers.dense(h, attention_size, use_bias=False) + tf.layers.dense(state_, attention_size, use_bias=False))
         vu = tf.tensordot(v, u, axes=1)
         # mask attention weights
         mask_att = mask(seq_len, T)   # (B, T)
