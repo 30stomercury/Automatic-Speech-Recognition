@@ -105,7 +105,7 @@ def parse_args():
                         help='Convert the length of audio estimate the length of chars.')
     parser.add_argument('--teacher_forcing_rate',
                         type=float,
-                        default=0.1,
+                        default=0.9,
                         help='Apply teacher forcing in decoder while training with constant sample rate.')
     # beam search
     parser.add_argument('--beam_size',

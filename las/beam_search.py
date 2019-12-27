@@ -77,7 +77,6 @@ class BeamSearch(object):
             beam_set = []                 
             # sort by log prob
             topk_beam_state = self._select_best_k(beam_set_bank)
-            print(dec_state[0].shape, dec_state[1].shape)
             for b in topk_beam_state:
                 if b.char_ids[-1] == self.end_id:
                     selected_beam_state.append(b)
@@ -116,7 +115,7 @@ class BeamSearch(object):
                 [l[i]
                  for i in range(self.args.num_dec_layers)])
         # look up
-        prev_char = self.speller.look_up(self.prev_char_id)
+        prev_char = self.speller._look_up(self.prev_char_id)
         prev_char = tf.reshape(prev_char, [1, self.args.embedding_size])
         # build graph, specify the variable scope
         self.cur_char, self.rnn_state, alphas = self.speller.decode(
@@ -138,7 +137,6 @@ class BeamSearch(object):
                     self.prev_char_id: prev_char_id,
                     self.rnn_state_packed: rnn_state_packed
                     }
-        print(rnn_state_packed[0].shape, rnn_state_packed[1].shape)
         logits, state = sess.run([self.cur_char, self.rnn_state], feed_dict)
         return logits[0], state
 
