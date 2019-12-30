@@ -92,7 +92,6 @@ def process_audio(audio_path,
     len_batch = []
     feats = []
     featlen = []
-
     # start extracting audio feature in a batch manner:
     for p in audio_path:
         audio, fs = librosa.load(p)

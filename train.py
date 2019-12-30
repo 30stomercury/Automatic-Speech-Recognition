@@ -17,22 +17,22 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 
 # define data generator
-train_libri_path = './data/LibriSpeech_train/train-clean-100'
-dev_libri_path = './data/LibriSpeech_dev/dev-clean'
+train_libri_path = args.train_data_path
+dev_libri_path = args.dev_data_path
 train_texts, train_audio_path = data_preparation(train_libri_path)
 dev_texts, dev_audio_path = data_preparation(dev_libri_path)
 
 # load from previous output
 try:
     print("Load features...")
-    train_feats = np.load("data/features/train_feats.npy", allow_pickle=True)
-    train_featlen = np.load("data/features/train_featlen.npy", allow_pickle=True)
-    train_chars = np.load("data/features/train_chars.npy", allow_pickle=True)
-    train_charlen = np.load("data/features/train_charlen.npy", allow_pickle=True)
-    dev_feats = np.load("data/features/dev_feats.npy", allow_pickle=True)
-    dev_featlen = np.load("data/features/dev_featlen.npy", allow_pickle=True)
-    dev_chars = np.load("data/features/dev_chars.npy", allow_pickle=True)
-    dev_charlen = np.load("data/features/dev_charlen.npy", allow_pickle=True)
+    train_feats = np.load(args.feat_path+"/train_feats.npy", allow_pickle=True)
+    train_featlen = np.load(args.feat_path+"/train_featlen.npy", allow_pickle=True)
+    train_chars = np.load(args.feat_path+"/train_chars.npy", allow_pickle=True)
+    train_charlen = np.load(args.feat_path+"/train_charlen.npy", allow_pickle=True)
+    dev_feats = np.load(args.feat_path+"/dev_feats.npy", allow_pickle=True)
+    dev_featlen = np.load(args.feat_path+"/dev_featlen.npy", allow_pickle=True)
+    dev_chars = np.load(args.feat_path+"/dev_chars.npy", allow_pickle=True)
+    dev_charlen = np.load(args.feat_path+"/dev_charlen.npy", allow_pickle=True)
     special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     char2id, id2char = lookup_dicts(special_chars)
 
@@ -45,10 +45,10 @@ except:
     special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     train_chars, train_charlen, char2id, id2char = process_texts(special_chars, train_texts)
     dev_chars, dev_charlen, _, _ = process_texts(special_chars, dev_texts)
-    np.save("data/features/train_chars.npy", train_chars)
-    np.save("data/features/train_charlen.npy", train_charlen)
-    np.save("data/features/dev_chars.npy", dev_chars)
-    np.save("data/features/dev_charlen.npy", dev_charlen)
+    np.save(args.feat_path+"/train_chars.npy", train_chars)
+    np.save(args.feat_path+"/train_charlen.npy", train_charlen)
+    np.save(args.feat_path+"/dev_chars.npy", dev_chars)
+    np.save(args.feat_path+"/dev_charlen.npy", dev_charlen)
     # audios
     train_feats, train_featlen = process_audio(train_audio_path, 
                                                sess, 
@@ -59,19 +59,21 @@ except:
                                                feat_dim=args.feat_dim,
                                                feat_type=args.feat_type,
                                                cmvn=args.cmvn)
+    np.save(args.feat_path+"/train_feats.npy", train_feats)    
+    np.save(args.feat_path+"/train_featlen.npy", train_featlen)
+    print(len(dev_audio_path))
     dev_feats, dev_featlen = process_audio(dev_audio_path, 
                                            sess, 
-                                           prepro_batch=100,
+                                           prepro_batch=10,
                                            sample_rate=args.sample_rate,
                                            frame_step=args.frame_step,
                                            frame_length=args.frame_length,
                                            feat_dim=args.feat_dim,
                                            feat_type=args.feat_type,
                                            cmvn=args.cmvn)
-    np.save("data/features/train_feats.npy", train_feats)    
-    np.save("data/features/train_featlen.npy", train_featlen)
-    np.save("data/features/dev_feats.npy", dev_feats)
-    np.save("data/features/dev_featlen.npy", dev_featlen)
+
+    np.save(args.feat_path+"/dev_feats.npy", dev_feats)
+    np.save(args.feat_path+"/dev_featlen.npy", dev_featlen)
 
 # Clip text length to predefined decoding steps
 # train
@@ -122,7 +124,7 @@ summary_writer = tf.summary.FileWriter(args.summary_path, sess.graph)
 # info
 print("INFO: Training command:"," ".join(sys.argv))
 print("INFO: Total weights:",np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
-print(tf.trainable_variables())
+#print(tf.trainable_variables())
 
 # training
 training_steps = num_train_batches * args.epoch

@@ -58,7 +58,7 @@ bs = BeamSearch(args, las, char2id)
 # create restore dict for decode scope
 var = {}
 var_all = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, '')
-var_att = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'decode/attention')
+var_att = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'decode/attention/Variable')
 var_decode = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'decode/')
 
 for v in var_all:
@@ -72,6 +72,11 @@ for v in var_all:
 # restore
 saver = tf.train.Saver(var_list=var)
 ckpt = tf.train.latest_checkpoint(args.save_path)
+
+"""
+from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
+print_tensors_in_checkpoint_file(ckpt, all_tensors=True, tensor_name='')
+"""
 
 if ckpt is None:
     sess.run(tf.global_variables_initializer())

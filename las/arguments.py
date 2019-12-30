@@ -38,10 +38,6 @@ def parse_args():
                         type=str2bool, 
                         default=True, 
                         help='Apply cmvn or not.')
-    parser.add_argument('--feat_path', 
-                        type=str, 
-                        default='./data/features', 
-                        help='Path to save features.')
     # training arguments
     parser.add_argument('--bucketing', 
                         type=str2bool, 
@@ -77,7 +73,6 @@ def parse_args():
                         type=int,
                         default=2,
                         help='The number of layers of pBLSTM in Listener.')
-
     # hparams of Speller
     parser.add_argument('--dec_units',
                         type=int,
@@ -110,9 +105,21 @@ def parse_args():
     # beam search
     parser.add_argument('--beam_size',
                         type=int,
-                        default=5,
+                        default=10,
                         help='Size for beam search.')
     # save path
+    parser.add_argument('--train_data_path',
+                        type=str,
+                        default='./data/LibriSpeech_train/train-clean-100',
+                        help='')
+    parser.add_argument('--dev_data_path',
+                        type=str,
+                        default='./data/LibriSpeech_dev/dev-clean',
+                        help='')
+    parser.add_argument('--feat_path', 
+                        type=str, 
+                        default='./data/features', 
+                        help='Path to save features.')
     parser.add_argument('--result_path',
                         type=str,
                         default='./results',
