@@ -26,7 +26,7 @@ class Speller:
 
     def __call__(self, enc_out, enc_len, dec_steps, teacher=None, is_training=True):
         with tf.variable_scope("Speller", reuse=tf.AUTO_REUSE):
-            prev_char = self._look_up(tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
+            init_char = self._look_up(tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
             init_state = self.dec_cell.zero_state(tf.shape(enc_out)[0], tf.float32)
             init_t = tf.constant(0, dtype=tf.int32)
             output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
@@ -65,12 +65,12 @@ class Speller:
 
             shape_invariant = [init_t.get_shape(), 
                                shape_state,
-                               prev_char.get_shape(), 
+                               init_char.get_shape(), 
                                tf.TensorShape([None, None, self.args.vocab_size])]
 
             t, dec_state, prev_char, output = \
                         tf.while_loop(is_stop, iteration, 
-                            [init_t, init_state, prev_char, output], shape_invariant)
+                            [init_t, init_state, init_char, output], shape_invariant)
             
             logits = output[:, 1:, :]
 
@@ -113,7 +113,6 @@ class Speller:
         else:
             return dec_state[1]
             
-
     def _build_decoder_cell(self):
         def rnn_cell():
             # lstm cell
@@ -209,7 +208,7 @@ class LAS:
     
     def _get_loss(self, logits, y, charlen):
         y_ = tf.one_hot(y, self.args.vocab_size)
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y_)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_)
         mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
         loss = tf.reduce_sum(
             cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)

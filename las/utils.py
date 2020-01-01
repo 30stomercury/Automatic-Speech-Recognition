@@ -34,15 +34,15 @@ def attention(h, state, h_dim, s_dim, seq_len):
     """
     
     with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
-        attention_size = h_dim
+        attention_size = s_dim
         T = tf.shape(h)[1]
         # tiling to (B, T, dec_units)
         state_ = tf.expand_dims(state, 1)
         h.set_shape([None, None, h_dim])
         state_.set_shape([None, 1, s_dim])
         # Trainable parameters
-        init_u = lambda: tf.random_normal([attention_size], stddev=0.1)
-        u = tf.Variable(init_u)
+        with tf.control_dependencies(None):
+            u = tf.Variable(tf.random_uniform([attention_size], minval=-1, maxval=1, dtype=tf.float32))
         v = tf.nn.tanh(
                 tf.layers.dense(h, attention_size, use_bias=False) + tf.layers.dense(state_, attention_size, use_bias=False))
         vu = tf.tensordot(v, u, axes=1)
@@ -131,7 +131,7 @@ def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training)
             rnn_out = tf.concat([even_new, odd_new], -1)        
             rnn_out = tf.reshape(rnn_out, [batch_size, -1, cell_units*4])
             rnn_out = tf.contrib.layers.layer_norm(rnn_out)
-            rnn_out = tf.layers.dense(                                                                                                                                                                     
+            rnn_out = tf.layers.dense( 
                                 rnn_out,
                                 enc_dim, use_bias=True)
             audio_len = (audio_len + audio_len % 2) / 2
