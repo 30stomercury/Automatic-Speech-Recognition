@@ -79,9 +79,9 @@ class Speller:
     def decode(self, enc_out, enc_len, dec_state, prev_char, is_training):
         """One decode step."""
         with tf.variable_scope("decode", reuse=tf.AUTO_REUSE):
-            s_prev = self._get_hidden_state(dec_state)
+            s_i = self._get_hidden_state(dec_state)
             context, alphas = attention(h=enc_out, 
-                                        state=s_prev, 
+                                        state=s_i, 
                                         h_dim=self.hidden_size, 
                                         s_dim=self.args.dec_units,
                                         seq_len=enc_len)
@@ -91,7 +91,6 @@ class Speller:
             cur_char = tf.layers.dense(
                             dec_out, 
                             self.args.vocab_size, use_bias=True)
-            cur_char = tf.layers.dropout(cur_char, self.args.dropout_rate, training=is_training)
 
             return cur_char, dec_state, alphas
 
