@@ -142,7 +142,8 @@ for step in range(training_steps):
         e_ =  gs // num_train_batches
         print("INFO: num epoch: {}, num_step: {}, ave loss: {}, wer: {}".format(
                                                 e_, gs, ave_loss, 0))
-        saver.save(sess, args.save_path+"/las_E{}".format(e_), global_step=gs)        
+        saver.save(sess, args.save_path+"/las_E{}".format(e_), global_step=gs)      
+        loss_ = []  
         # eval
         print("Inference...")
         texts = get_texts(y_hat, sess, num_dev_batches, id2char) 

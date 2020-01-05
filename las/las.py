@@ -83,7 +83,7 @@ class Speller:
             context, alphas = attention(h=enc_out, 
                                         state=s_i, 
                                         h_dim=self.hidden_size, 
-                                        s_dim=self.args.dec_units,
+                                        s_dim=self.args.dec_units*self.args.num_dec_layers,
                                         seq_len=enc_len)
             dec_in = tf.concat([prev_char, context], -1) # dim = h dim + embedding dim
             dec_out, dec_state = self.dec_cell(
@@ -108,7 +108,7 @@ class Speller:
 
     def _get_hidden_state(self, dec_state):
         if self.args.num_dec_layers > 0:
-            return dec_state[-1] # last layer, h_t-1 
+            return tf.concat(dec_state, -1)
         else:
             return dec_state[1]
             
