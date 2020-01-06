@@ -182,7 +182,6 @@ class LAS:
         logits, ctc_logits, alphas = self.speller(h, enc_len, dec_steps, y)
         # Scale to [0, 255]
         attention_images = alphas*255
-        attention_images = tf.expand_dims(attention_images, -1)
         # compute loss
         loss = self._get_loss(logits, y, charlen)
         if self.args.ctc:
@@ -204,11 +203,12 @@ class LAS:
         tf.summary.scalar("global_step", global_step)
         tf.summary.text("sample_prediction", sample)
         tf.summary.text("ground_truth", gt)
-        tf.summary.image('attention_images', attention_images)
+        tf.summary.image('attention_images', tf.expand_dims(attention_images, -1))
+        tf.summary.image('fbank_images', tf.expand_dims(audio, -1))
 
         summaries = tf.summary.merge_all()
 
-        return loss, train_op, global_step, logits, summaries
+        return loss, train_op, global_step, logits, alphas, summaries
 
     def inference(self, xs):
         audio, audiolen = xs

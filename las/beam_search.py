@@ -118,7 +118,7 @@ class BeamSearch(object):
         prev_char = self.speller._look_up(self.prev_char_id)
         prev_char = tf.reshape(prev_char, [1, self.args.embedding_size])
         # build graph, specify the variable scope
-        self.cur_char, self.rnn_state, alphas = self.speller.decode(
+        self.cur_char, self.rnn_state, self.alphas = self.speller.decode(
                             self.h, self.h_len, rnn_tuple_state, prev_char, is_training=False)
 
     def _get_encode(self, sess, audio, audiolen):
@@ -137,7 +137,8 @@ class BeamSearch(object):
                     self.prev_char_id: prev_char_id,
                     self.rnn_state_packed: rnn_state_packed
                     }
-        logits, state = sess.run([self.cur_char, self.rnn_state], feed_dict)
+        logits, state, alphas = sess.run([self.cur_char, self.rnn_state, self.alphas], feed_dict)
+        print(alphas[0])
         return logits[0], state
 
     def _get_init(self, sess):
