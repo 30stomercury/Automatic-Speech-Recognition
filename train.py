@@ -85,6 +85,8 @@ train_charlen = train_charlen[index]
 
 # init model 
 args.vocab_size = len(char2id)
+if args.ctc:
+    args.vocab_size += 1
 las =  LAS(args, Listener, Speller, char2id, id2char)
 
 # build batch iterator
@@ -133,7 +135,7 @@ print("Training...")
 loss_ = []
 for step in range(training_steps):
     batch_loss, gs, _, summary_, logits, train_gt = sess.run([loss, global_step, train_op, train_summary, train_logits, train_ys])
-    print("Ground: {}\nSample: {}".format(convert_idx_to_string(np.argmax(logits, -1)[0], id2char), convert_idx_to_string(train_gt[0][0], id2char)))
+    print("Sample: {}\nGround: {}".format(convert_idx_to_string(np.argmax(logits, -1)[0], id2char), convert_idx_to_string(train_gt[0][0], id2char)))
     print("INFO: num_step: {}, loss: {}".format(gs, batch_loss))
     summary_writer.add_summary(summary_, gs)
     loss_.append(batch_loss)

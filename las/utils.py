@@ -23,7 +23,7 @@ def mask(original_len, padded_len):
     mask = y <= original_len
     return tf.cast(mask, tf.float32)
 
-def attention(h, state, h_dim, s_dim, seq_len):
+def attention(h, state, h_dim, s_dim, attention_size, seq_len):
     """Bahdanau attention
     args:
         h: (B, T, enc_units*2), encoder output.
@@ -34,7 +34,6 @@ def attention(h, state, h_dim, s_dim, seq_len):
     """
     
     with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
-        attention_size = s_dim
         T = tf.shape(h)[1]
         # tiling to (B, T, dec_units)
         state_ = tf.expand_dims(state, 1)
@@ -51,7 +50,7 @@ def attention(h, state, h_dim, s_dim, seq_len):
         paddings = tf.ones_like(mask_att)*(-1e8)
         vu = tf.where(tf.equal(mask_att, 0), paddings, vu)      
         alphas = tf.nn.softmax(vu)                             
-        # Output reduced with context vector: (B, T)
+        # Output reduced with context vector: (B, hidden_size)
         out = tf.reduce_sum(h * tf.expand_dims(alphas, -1), 1)
     return out, alphas
 
@@ -115,7 +114,8 @@ def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training)
         rnn_out = tf.concat(rnn_out, -1)        
         rnn_out = tf.layers.dense(                                                                                                                                                                     
                             rnn_out,
-                            enc_dim, use_bias=True)
+                            enc_dim, use_bias=True, 
+                            activation=tf.nn.tanh)
 
     # Pyramid BLSTM layers
     for l in range(num_layers):
@@ -130,10 +130,11 @@ def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training)
             odd_new = padded_out[:, 1::2, :]
             rnn_out = tf.concat([even_new, odd_new], -1)        
             rnn_out = tf.reshape(rnn_out, [batch_size, -1, cell_units*4])
-            rnn_out = tf.contrib.layers.layer_norm(rnn_out)
             rnn_out = tf.layers.dense( 
                                 rnn_out,
-                                enc_dim, use_bias=True)
+                                enc_dim, 
+                                use_bias=True,
+                                activation=tf.nn.tanh)
             audio_len = (audio_len + audio_len % 2) / 2
     return rnn_out, states, audio_len
 

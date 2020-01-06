@@ -26,14 +26,22 @@ class Speller:
 
     def __call__(self, enc_out, enc_len, dec_steps, teacher=None, is_training=True):
         with tf.variable_scope("Speller", reuse=tf.AUTO_REUSE):
+
+            if self.args.ctc:
+                ctc_logits = tf.layers.dense(
+                                enc_out, self.args.vocab_size)
+            else:
+                ctc_logits = None
+
             init_char = self._look_up(tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
             init_state = self.dec_cell.zero_state(tf.shape(enc_out)[0], tf.float32)
             init_t = tf.constant(0, dtype=tf.int32)
-            output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
+            init_output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
+            init_alphas = tf.zeros([tf.shape(enc_out)[0], 1, tf.shape(enc_out)[1]])
 
             # define loop
-            def iteration(t, rnn_state, prev_char, output):
-                cur_char, rnn_state, alphas = \
+            def iteration(t, rnn_state, prev_char, output, alphas):
+                cur_char, rnn_state, alphas_ = \
                         self.decode(enc_out, enc_len, rnn_state, prev_char, is_training)
                 if is_training:
                     condition = self.args.teacher_forcing_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
@@ -49,8 +57,9 @@ class Speller:
 
                 cur_char = tf.expand_dims(cur_char, 1)
                 output = tf.concat([output, cur_char], 1)
+                alphas = tf.concat([alphas, tf.expand_dims(alphas_, 1)], 1)
 
-                return t + 1, rnn_state, prev_char, output
+                return t + 1, rnn_state, prev_char, output, alphas
 
             # stop criteria
             def is_stop(t, *args):
@@ -66,15 +75,17 @@ class Speller:
             shape_invariant = [init_t.get_shape(), 
                                shape_state,
                                init_char.get_shape(), 
-                               tf.TensorShape([None, None, self.args.vocab_size])]
+                               tf.TensorShape([None, None, self.args.vocab_size]),
+                               tf.TensorShape([None, None, None])]
 
-            t, dec_state, prev_char, output = \
+            t, dec_state, prev_char, output, alphas = \
                         tf.while_loop(is_stop, iteration, 
-                            [init_t, init_state, init_char, output], shape_invariant)
+                            [init_t, init_state, init_char, init_output, init_alphas], shape_invariant)
             
             logits = output[:, 1:, :]
+            alphas = alphas[:, 1:, :]
 
-            return logits
+            return logits, ctc_logits, alphas
 
     def decode(self, enc_out, enc_len, dec_state, prev_char, is_training):
         """One decode step."""
@@ -84,6 +95,7 @@ class Speller:
                                         state=s_i, 
                                         h_dim=self.hidden_size, 
                                         s_dim=self.args.dec_units*self.args.num_dec_layers,
+                                        attention_size=self.args.attention_size,
                                         seq_len=enc_len)
             dec_in = tf.concat([prev_char, context], -1) # dim = h dim + embedding dim
             dec_out, dec_state = self.dec_cell(
@@ -167,9 +179,14 @@ class LAS:
         # encoder decoder network
         dec_steps = tf.shape(y)[1] # => time steps in this batch
         h, enc_state, enc_len = self.listener(audio, audiolen)
-        logits  = self.speller(h, enc_len, dec_steps, y)
+        logits, ctc_logits, alphas = self.speller(h, enc_len, dec_steps, y)
+        # Scale to [0, 255]
+        attention_images = alphas*255
+        attention_images = tf.expand_dims(attention_images, -1)
         # compute loss
         loss = self._get_loss(logits, y, charlen)
+        if self.args.ctc:
+            loss += 0.5*self._get_ctc_loss(ctc_logits, y, charlen)
         global_step = tf.train.get_or_create_global_step()
         optimizer = tf.train.AdamOptimizer(self.args.lr)
         # gradient clipping
@@ -187,6 +204,7 @@ class LAS:
         tf.summary.scalar("global_step", global_step)
         tf.summary.text("sample_prediction", sample)
         tf.summary.text("ground_truth", gt)
+        tf.summary.image('attention_images', attention_images)
 
         summaries = tf.summary.merge_all()
 
@@ -200,7 +218,7 @@ class LAS:
         dec_steps = tf.to_int32(dec_steps)
         # encoder decoder network
         h, enc_state, enc_len = self.listener(audio, audiolen, is_training=False)
-        logits  = self.speller(h, enc_len, dec_steps, is_training=False)
+        logits, ctc_logits, alphas  = self.speller(h, enc_len, dec_steps, is_training=False)
         y_hat = tf.argmax(logits, -1)
 
         return logits, y_hat
@@ -211,5 +229,19 @@ class LAS:
         mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
         loss = tf.reduce_sum(
             cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
-
         return loss
+
+    def _get_ctc_loss(self, ctc_logits, y, charlen):
+        labels = tf.cast(y, tf.int64)
+        idx = tf.where(tf.not_equal(labels, 0))
+        sparse = tf.SparseTensor(idx, tf.gather_nd(labels, idx), tf.shape(labels, out_type=tf.int64))
+        sparse = tf.cast(sparse, tf.int32)
+        return tf.reduce_mean(
+                tf.nn.ctc_loss(
+                        sparse,
+                        inputs=ctc_logits,
+                        sequence_length=charlen,
+                        preprocess_collapse_repeated=False,
+                        ctc_merge_repeated=True,
+                        ignore_longer_outputs_than_inputs=True,
+                        time_major=False))

@@ -90,6 +90,10 @@ def parse_args():
                         type=int,
                         default=128,
                         help='The dimension of the embedding matrix is: [vocab_size, embedding_size].')
+    parser.add_argument('--attention_size',
+                        type=int,
+                        default=128,
+                        help='Attention size.')
     parser.add_argument('--maxlen',
                         type=int,
                         default=400,
@@ -102,6 +106,10 @@ def parse_args():
                         type=float,
                         default=0.9,
                         help='Apply teacher forcing in decoder while training with constant sample rate.')
+    parser.add_argument('--ctc', 
+                        type=str2bool, 
+                        default=False, 
+                        help='Apply ctc.')
     # beam search
     parser.add_argument('--beam_size',
                         type=int,
