@@ -6,6 +6,7 @@ import numpy as np
 from glob import glob
 import string
 import os
+from tqdm import tqdm
 from las.arguments import *
 
 def data_preparation(libri_path):
@@ -123,30 +124,39 @@ def process_audios_batch(audio_path,
 def process_audios(audio_path,
                    frame_step=10, 
                    frame_length=25,
-                   feat_dim = 40,
+                   feat_dim=40,
                    feat_type='fbank',
                    cmvn=True):
     """
     Returns:
         feats: List of features with variable length L, 
                each element is in the shape of (L, 39), 13 for mfcc,
-               26 for its derivative features.
+               26 for its firs & second derivative.
         featlen: List of feature length.
     """    
     feats = []
     featlen = []
-    for p in audio_path:
+    for p in tqdm(audio_path):
+
         audio, fs = librosa.load(p)
-        mfcc = speechpy.feature.mfcc(audio, fs)
-        if cmvn:
-            mfcc = speechpy.processing.cmvn(mfcc, True)
 
-        mfcc_39 = speechpy.feature.extract_derivative_feature(mfcc)
-        feats.append(mfcc_39.reshape(-1, 39))
+        if feat_type == 'mfcc':
+            assert feat_dim == 13, "13 is commonly used"
+            mfcc = speechpy.feature.mfcc(audio, fs, frame_length=frame_length/1000, frame_stride=frame_step/1000, num_cepstral=feat_dim)
+            if cmvn:
+                mfcc = speechpy.processing.cmvn(mfcc, True)
+            mfcc_39 = speechpy.feature.extract_derivative_feature(mfcc)
+            feats.append(mfcc_39.reshape(-1, feat_dim*3))
+
+        elif feat_type == 'fbank':
+            fbank = speechpy.feature.lmfe(audio, fs, frame_length=frame_length/1000, frame_stride=frame_step/1000, num_filters=feat_dim)
+            if cmvn:
+                fbank = speechpy.processing.cmvn(fbank, True)
+            feats.append(fbank.reshape(-1, feat_dim))
+
         featlen.append(len(feats))
-        print("Processed samples: {}/{}".format(len(feats), len(audio_path)))
 
-    return np.array(feats).astpye(np.float32), np.array(featlen).astype(np.int32)
+    return np.array(feats).astype(np.float32), np.array(featlen).astype(np.int32)
 
 def process_texts(special_chars, texts):
     """
@@ -158,7 +168,7 @@ def process_texts(special_chars, texts):
     charlen = []
     chars = []
     char2id, id2char = lookup_dicts(special_chars)
-    for sentence in texts:
+    for sentence in tqdm(texts):
         sentence = sentence.translate(str.maketrans('', '', string.punctuation))
         char_converted = [char2id[char] if char != ' ' else char2id['<SPACE>'] for char in list(sentence)]
         chars.append(char_converted + [char2id['<EOS>']])
