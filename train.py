@@ -58,6 +58,7 @@ except:
                                                frame_length=args.frame_length,
                                                feat_dim=args.feat_dim,
                                                feat_type=args.feat_type,
+                                               dither=args.dither,
                                                cmvn=args.cmvn)
     np.save(args.feat_path+"/train_feats.npy", train_feats)    
     np.save(args.feat_path+"/train_featlen.npy", train_featlen)
@@ -70,6 +71,7 @@ except:
                                            frame_length=args.frame_length,
                                            feat_dim=args.feat_dim,
                                            feat_type=args.feat_type,
+                                           dither=args.dither,
                                            cmvn=args.cmvn)
 
     np.save(args.feat_path+"/dev_feats.npy", dev_feats)
@@ -100,7 +102,7 @@ dev_xs, dev_ys = dev_iter.get_next()
 
 # build train, inference graph 
 print("Build train, inference graph (please wait)...")
-loss, train_op, global_step, train_logits, train_summary = las.train(train_xs, train_ys)
+loss, train_op, global_step, train_logits, alphas, train_summary = las.train(train_xs, train_ys)
 dev_logits, y_hat = las.inference(dev_xs)
 sample = convert_idx_to_token_tensor(y_hat[0], id2char)
 

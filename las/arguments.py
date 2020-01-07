@@ -34,6 +34,10 @@ def parse_args():
                         type=str, 
                         default='fbank', 
                         help='Log-mel filter bank.')
+    parser.add_argument('--dither', 
+                        type=float, 
+                        default=0, 
+                        help='Dither for fbank.')
     parser.add_argument('--cmvn', 
                         type=str2bool, 
                         default=True, 

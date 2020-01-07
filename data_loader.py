@@ -46,6 +46,7 @@ def process_audio(audio_path,
                   frame_length=25,
                   feat_dim = 40,
                   feat_type='fbank',
+                  dither=0,
                   cmvn=True):
     """GPU accerated audio features extracting in tensorflow
 
@@ -72,7 +73,7 @@ def process_audio(audio_path,
     input_audio = tf.placeholder(dtype=tf.float32, shape=[None, None])
     if feat_type == 'fbank':
         mel_fbanks = common_audio.compute_mel_filterbank_features(
-            input_audio, sample_rate=sample_rate, frame_step=frame_step, frame_length=frame_length, num_mel_bins=feat_dim, apply_mask=True)
+            input_audio, sample_rate=sample_rate, dither=dither, frame_step=frame_step, frame_length=frame_length, num_mel_bins=feat_dim, apply_mask=True)
         mel_fbanks = tf.reduce_sum(mel_fbanks, -1)
     if cmvn:
         mel_fbanks = CMVN(mel_fbanks)
