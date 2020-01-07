@@ -38,44 +38,7 @@ try:
 
 # process features
 except:
-    print("Process train/dev features...")
-    if not os.path.exists(args.feat_path):
-        os.makedirs(args.feat_path)
-    # texts
-    special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-    train_chars, train_charlen, char2id, id2char = process_texts(special_chars, train_texts)
-    dev_chars, dev_charlen, _, _ = process_texts(special_chars, dev_texts)
-    np.save(args.feat_path+"/train_chars.npy", train_chars)
-    np.save(args.feat_path+"/train_charlen.npy", train_charlen)
-    np.save(args.feat_path+"/dev_chars.npy", dev_chars)
-    np.save(args.feat_path+"/dev_charlen.npy", dev_charlen)
-    # audios
-    train_feats, train_featlen = process_audio(train_audio_path, 
-                                               sess, 
-                                               prepro_batch=100,
-                                               sample_rate=args.sample_rate,
-                                               frame_step=args.frame_step,
-                                               frame_length=args.frame_length,
-                                               feat_dim=args.feat_dim,
-                                               feat_type=args.feat_type,
-                                               dither=args.dither,
-                                               cmvn=args.cmvn)
-    np.save(args.feat_path+"/train_feats.npy", train_feats)    
-    np.save(args.feat_path+"/train_featlen.npy", train_featlen)
-    print(len(dev_audio_path))
-    dev_feats, dev_featlen = process_audio(dev_audio_path, 
-                                           sess, 
-                                           prepro_batch=10,
-                                           sample_rate=args.sample_rate,
-                                           frame_step=args.frame_step,
-                                           frame_length=args.frame_length,
-                                           feat_dim=args.feat_dim,
-                                           feat_type=args.feat_type,
-                                           dither=args.dither,
-                                           cmvn=args.cmvn)
-
-    np.save(args.feat_path+"/dev_feats.npy", dev_feats)
-    np.save(args.feat_path+"/dev_featlen.npy", dev_featlen)
+    raise Exception("Run preprocess.py first")
 
 # Clip text length to predefined decoding steps
 # train
