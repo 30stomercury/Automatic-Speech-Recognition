@@ -154,7 +154,7 @@ def process_audios(audio_path,
                 fbank = speechpy.processing.cmvn(fbank, True)
             feats.append(fbank.reshape(-1, feat_dim).astype(np.float32))
 
-        featlen.append(len(feats))
+        featlen.append(len(feats[-1]))
 
     return feats, np.array(featlen).astype(np.int32)
 
