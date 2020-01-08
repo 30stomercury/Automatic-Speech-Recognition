@@ -156,7 +156,7 @@ def process_audios(audio_path,
 
         featlen.append(len(feats))
 
-    return np.array(feats).astype(np.float32), np.array(featlen).astype(np.int32)
+    return feats, np.array(featlen).astype(np.int32)
 
 def process_texts(special_chars, texts):
     """

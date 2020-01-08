@@ -2,6 +2,7 @@ from las.utils import *
 from las.arguments import *
 from las.las import *
 from data_loader import *
+from preprocess import *
 import os
 import sys
 import numpy as np
