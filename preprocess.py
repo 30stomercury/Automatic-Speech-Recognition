@@ -146,13 +146,13 @@ def process_audios(audio_path,
             if cmvn:
                 mfcc = speechpy.processing.cmvn(mfcc, True)
             mfcc_39 = speechpy.feature.extract_derivative_feature(mfcc)
-            feats.append(mfcc_39.reshape(-1, feat_dim*3))
+            feats.append(mfcc_39.reshape(-1, feat_dim*3).astype(np.float32))
 
         elif feat_type == 'fbank':
             fbank = speechpy.feature.lmfe(audio, fs, frame_length=frame_length/1000, frame_stride=frame_step/1000, num_filters=feat_dim)
             if cmvn:
                 fbank = speechpy.processing.cmvn(fbank, True)
-            feats.append(fbank.reshape(-1, feat_dim))
+            feats.append(fbank.reshape(-1, feat_dim).astype(np.float32))
 
         featlen.append(len(feats))
 
