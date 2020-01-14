@@ -60,16 +60,36 @@ ckpt = tf.train.latest_checkpoint(args.save_path)
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 print_tensors_in_checkpoint_file(ckpt, all_tensors=True, tensor_name='')
 """
+def wer(s1,s2):
+
+    d = np.zeros([len(s1)+1,len(s2)+1])
+    d[:,0] = np.arange(len(s1)+1)
+    d[0,:] = np.arange(len(s2)+1)
+
+    for j in range(1,len(s2)+1):
+        for i in range(1,len(s1)+1):
+            if s1[i-1] == s2[j-1]:
+                d[i,j] = d[i-1,j-1]
+            else:
+                d[i,j] = min(d[i-1,j]+1, d[i,j-1]+1, d[i-1,j-1]+1)
+
+    return d[-1,-1]/len(s1)
 
 if ckpt is None:
     sess.run(tf.global_variables_initializer())
 else:
     saver.restore(sess, ckpt)
 
+res = []
 for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_chars):
     xs = (np.expand_dims(audio, 0), np.expand_dims(audiolen, 0))
     beam_states = bs.decode(sess, xs)
     for i in range(len(beam_states)):
         print("Hyposis_{}|".format(i), convert_idx_to_string(beam_states[i].char_ids[1:], id2char))
     print("Ground    |", convert_idx_to_string(y, id2char))
+    gt = convert_idx_to_string(y, id2char)
+    hyp = convert_idx_to_string(beam_states[-1].char_ids[1:], id2char)
+    res.append(wer(gt.split(" "), hyp.split(" ")))
+    print("wer:", res[-1])
     print("\n")
+print("dev WER:" mean(res))
