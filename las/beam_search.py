@@ -34,6 +34,7 @@ class BeamSearch(object):
         self.char2id = char2id
         self.start_id = char2id['<SOS>']
         self.end_id = char2id['<EOS>']
+
         # build graph
         self._build_init(size=1)
         self._build_encode()
@@ -145,14 +146,19 @@ class BeamSearch(object):
         """get rnn init state"""
         return sess.run(self.init_state)
 
-    def _select_best_k(self, beam_set):
+    def _select_best_k(self, beam_set, norm=True):
         """select top k BeamStatei
         Args:
             beam_set: list, beam set.
+            norm: bool, normalize with length.
         Returns:
             beam_set: list, sorted beam_set based on log_prob in acending order.
         """
-        log_prob = [b.log_prob for b in beam_set]
+        if norm:
+            log_prob = [b.log_prob/len(b.char_ids) for b in beam_set]
+        else:
+            log_prob = [b.log_prob for b in beam_set]
+
         idx = np.argsort(log_prob)[-self.beam_size:]
         return [beam_set[i] for i in idx]
         

@@ -1,6 +1,7 @@
 import tensorflow as tf
+import numpy as np
 
-def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=True, shuffle_batches=True):
+def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=True, is_training=True):
     """
     Returns:
         iter: Batch iterator.
@@ -23,9 +24,10 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=T
             chars_, charlen_  = chars[rand_idx], charlen[rand_idx]
         else:
             sort_idx = featlen.argsort()
-            window = 1000
-            for i in range(len(sort_idx) // window):
-                sort_idx[i*window:(i+1)*window] = sort_idx[i*window:(i+1)*window][np.random.permutation(window)]
+            if is_training:
+                window = 1000
+                for i in range(len(sort_idx) // window):
+                    sort_idx[i*window:(i+1)*window] = sort_idx[i*window:(i+1)*window][np.random.permutation(window)]
             feats_, featlen_ = feats[sort_idx], featlen[sort_idx]
             chars_, charlen_ = chars[sort_idx], charlen[sort_idx]
             
@@ -57,7 +59,7 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=T
                                              output_types=types, 
                                              output_shapes=shapes)
     dataset.batch(batch_size).prefetch(1)
-    if shuffle_batches:
+    if is_training:
         dataset = dataset.shuffle(batch_size*64)
     dataset = dataset.repeat() 
     iter = dataset.make_initializable_iterator()
