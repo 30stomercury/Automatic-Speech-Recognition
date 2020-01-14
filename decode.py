@@ -3,6 +3,7 @@ from las.arguments import *
 from las.las import *
 from las.utils import *
 from data_loader import *
+from preprocess import *
 import numpy as np
 import tensorflow as tf
 import os
@@ -17,36 +18,18 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 # load from previous output
 try:
+    char2id, id2char = lookup_dicts(special_chars)
     print("Load features...")
-    dev_feats = np.load("data/features/dev_feats.npy", allow_pickle=True)
-    dev_featlen = np.load("data/features/dev_featlen.npy", allow_pickle=True)
-    dev_chars = np.load("data/features/dev_chars.npy", allow_pickle=True)
-    dev_charlen = np.load("data/features/dev_charlen.npy", allow_pickle=True)
+    dev_feats = np.load(args.feat_path+"/dev_feats.npy", allow_pickle=True)
+    dev_featlen = np.load(args.feat_path+"/dev_featlen.npy", allow_pickle=True)
+    dev_chars = np.load(args.feat_path+"/dev_chars.npy", allow_pickle=True)
+    dev_charlen = np.load(args.feat_path+"/dev_charlen.npy", allow_pickle=True)
     special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     char2id, id2char = lookup_dicts(special_chars)
 
 # process features
 except:
-    print("Process train/dev features...")
-    if not os.path.exists(args.feat_path):
-        os.makedirs(args.feat_path)
-    # texts
-    special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-    dev_chars, dev_charlen, char2id, id2char = process_texts(special_chars, dev_texts)
-    np.save("data/features/dev_chars.npy", dev_chars)
-    np.save("data/features/dev_charlen.npy", dev_charlen)
-    # audios
-    dev_feats, dev_featlen = process_audio(dev_audio_path, 
-                                           sess, 
-                                           prepro_batch=100,
-                                           sample_rate=args.sample_rate,
-                                           frame_step=args.frame_step,
-                                           frame_length=args.frame_length,
-                                           feat_dim=args.feat_dim,
-                                           feat_type=args.feat_type,
-                                           cmvn=args.cmvn)
-    np.save("data/features/dev_feats.npy", dev_feats)
-    np.save("data/features/dev_featlen.npy", dev_featlen)
+    raise Exception("Run preprocess.py first")
 
 # init model 
 args.vocab_size = len(char2id)

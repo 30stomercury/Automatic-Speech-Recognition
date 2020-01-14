@@ -139,7 +139,6 @@ class BeamSearch(object):
                     self.rnn_state_packed: rnn_state_packed
                     }
         logits, state, alphas = sess.run([self.cur_char, self.rnn_state, self.alphas], feed_dict)
-        print(alphas[0])
         return logits[0], state
 
     def _get_init(self, sess):
