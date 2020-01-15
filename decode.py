@@ -18,7 +18,6 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 # load from previous output
 try:
-    char2id, id2char = lookup_dicts(special_chars)
     print("Load features...")
     dev_feats = np.load(args.feat_path+"/dev_feats.npy", allow_pickle=True)
     dev_featlen = np.load(args.feat_path+"/dev_featlen.npy", allow_pickle=True)
@@ -56,10 +55,8 @@ for v in var_all:
 saver = tf.train.Saver(var_list=var)
 ckpt = tf.train.latest_checkpoint(args.save_path)
 
-"""
-from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
-print_tensors_in_checkpoint_file(ckpt, all_tensors=True, tensor_name='')
-"""
+print("-----------ckpt: {}-----------".format(ckpt))
+
 def wer(s1,s2):
 
     d = np.zeros([len(s1)+1,len(s2)+1])
@@ -80,16 +77,18 @@ if ckpt is None:
 else:
     saver.restore(sess, ckpt)
 
+# sort by length
+sorted_id = np.argsort(dev_featlen)
+dev_feats, dev_featlen, dev_chars = \
+            dev_feats[sorted_id], dev_featlen[sorted_id], dev_chars[sorted_id]
 res = []
 for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_chars):
     xs = (np.expand_dims(audio, 0), np.expand_dims(audiolen, 0))
     beam_states = bs.decode(sess, xs)
-    for i in range(len(beam_states)):
-        print("Hyposis_{}|".format(i), convert_idx_to_string(beam_states[i].char_ids[1:], id2char))
-    print("Ground    |", convert_idx_to_string(y, id2char))
-    gt = convert_idx_to_string(y, id2char)
+    ref = convert_idx_to_string(y, id2char)
     hyp = convert_idx_to_string(beam_states[-1].char_ids[1:], id2char)
-    res.append(wer(gt.split(" "), hyp.split(" ")))
-    print("wer:", res[-1])
-    print("\n")
-print("dev WER:" mean(res))
+    res.append(wer(ref.split(" "), hyp.split(" ")))
+    print("REF |", ref)
+    print("HYP |", hyp)
+
+print("dev WER:", mean(res))

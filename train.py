@@ -92,7 +92,6 @@ summary_writer = tf.summary.FileWriter(args.summary_path, sess.graph)
 # info
 print("INFO: Training command:"," ".join(sys.argv))
 print("INFO: Total weights:",np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
-#print(tf.trainable_variables())
 
 # training
 training_steps = num_train_batches * args.epoch
@@ -101,7 +100,7 @@ print("Training...")
 loss_ = []
 for step in range(training_steps):
     batch_loss, gs, _, summary_, logits, train_gt = sess.run([loss, global_step, train_op, train_summary, train_logits, train_ys])
-    print("Sample: {}\nGround: {}".format(convert_idx_to_string(np.argmax(logits, -1)[0], id2char), convert_idx_to_string(train_gt[0][0], id2char)))
+    print("HYP: {}\nREF: {}".format(convert_idx_to_string(np.argmax(logits, -1)[0], id2char), convert_idx_to_string(train_gt[0][0], id2char)))
     print("INFO: num_step: {}, loss: {}".format(gs, batch_loss))
     summary_writer.add_summary(summary_, gs)
     loss_.append(batch_loss)
@@ -110,12 +109,12 @@ for step in range(training_steps):
         e_ =  gs // num_train_batches
         print("INFO: num epoch: {}, num_step: {}, ave loss: {}, wer: {}".format(
                                                 e_, gs, ave_loss, 0))
-        saver.save(sess, args.save_path+"/las_E{}".format(e_), global_step=gs)      
+        saver.save(sess, args.save_path+"/las_E{}".format(e_))      
         loss_ = []  
         # eval
-        print("Inference...")
-        texts = get_texts(y_hat, sess, num_dev_batches, id2char) 
-        with open(args.result_path+"/texts_E{}.txt".format(e_), 'w') as fout:
-            fout.write("\n".join(texts))
+        #print("Inference...")
+        #texts = get_texts(y_hat, sess, num_dev_batches, id2char) 
+        #with open(args.result_path+"/texts_E{}.txt".format(e_), 'w') as fout:
+        #    fout.write("\n".join(texts))
 
 summary_writer.close()
