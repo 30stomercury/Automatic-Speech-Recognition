@@ -6,6 +6,7 @@ from data_loader import *
 from preprocess import *
 import numpy as np
 import tensorflow as tf
+from tqdm import tqdm
 import os
 
 
@@ -91,4 +92,4 @@ for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_chars):
     print("REF |", ref)
     print("HYP |", hyp)
 
-print("dev WER:", mean(res))
+print("dev WER:",np.mean(res))

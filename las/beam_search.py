@@ -53,28 +53,35 @@ class BeamSearch(object):
         if len(audio) != 1:
           raise ValueError('batch size must be 1 while performing beam search.')
         
+        # encode        
         h, enc_len = self._get_encode(sess, audio, audiolen)
+
         # estimate decoding steps
         dec_step = int(audiolen * self.args.convert_rate)
         t = 0
+
         # decode
         init_state = self._get_init(sess)
-        beam_set = [BeamState([self.start_id], 0, init_state)] #* self.beam_size
+        beam_set = [BeamState([self.start_id], 0, init_state)]*self.beam_size 
         selected_beam_state = []
         while t < dec_step and len(selected_beam_state) < self.beam_size:
             prev_char_ids = [b.char_ids[-1] for b in beam_set]
-            dec_states = [b.state for b in beam_set]
+            prev_states = [self._pack_state(b.state) for b in beam_set]
             beam_set_bank = []
-         
-            # collect search path from beam_size to 2*beam_size*beam_size
-            for i in range(len(beam_set)):
-                logits, dec_state = self._get_decode(
-                                        sess, h, enc_len, prev_char_ids[i], dec_states[i])
-                topk_ids = np.argsort(logits)       # => argsort is in acending order
-                topk_probs = logits[topk_ids]
+
+            # put N nodes into a batch and feed it to the model
+            states_in = np.concatenate(prev_states, 1)
+            logits, next_states = self._get_decode(
+                                    sess, h, enc_len, prev_char_ids, states_in)
+            num_beam = len(beam_set) if t > 0 else 1 
+
+            # collect nodes
+            for i in range(num_beam):
+                topk_ids = np.argsort(logits[i])       # => argsort is in acending order
+                topk_probs = logits[i][topk_ids]
                 for j in range(self.args.vocab_size):
                     beam_set_bank.append(beam_set[i].update(
-                                        topk_ids[j], topk_probs[j], dec_state))
+                                        topk_ids[j], topk_probs[j], (next_states[0][i], next_states[1][i])))
             beam_set = []                 
             # sort by log prob
             topk_beam_state = self._select_best_k(beam_set_bank)
@@ -85,6 +92,9 @@ class BeamSearch(object):
                     beam_set.append(b)
             t += 1
         
+        if t == dec_step:
+            selected_beam_state.extend(beam_set)
+
         return self._select_best_k(selected_beam_state)
 
     def _build_init(self, size):
@@ -107,9 +117,9 @@ class BeamSearch(object):
         self.h = tf.placeholder(tf.float32,
                                 shape=[None, None, self.args.enc_units*2], name='enc_out')
         self.h_len = tf.placeholder(tf.int32, shape=[None], name='enc_len')
-        self.prev_char_id = tf.placeholder(tf.int32, name='char_id')
+        self.prev_char_id = tf.placeholder(tf.int32, shape=[None], name='char_id')
         self.rnn_state_packed = tf.placeholder(tf.float32, 
-                                [self.args.num_dec_layers, self.args.batch_size, self.args.dec_units], name='rnn_state')
+                                [self.args.num_dec_layers, None, self.args.dec_units], name='rnn_state')
         # form to tuple state
         l = tf.unstack(self.rnn_state_packed, axis=0)
         rnn_tuple_state = tuple(
@@ -117,7 +127,7 @@ class BeamSearch(object):
                  for i in range(self.args.num_dec_layers)])
         # look up
         prev_char = self.speller._look_up(self.prev_char_id)
-        prev_char = tf.reshape(prev_char, [1, self.args.embedding_size])
+        prev_char = tf.reshape(prev_char, [-1, self.args.embedding_size])
         # build graph, specify the variable scope
         self.cur_char, self.rnn_state, self.alphas = self.speller.decode(
                             self.h, self.h_len, rnn_tuple_state, prev_char, is_training=False)
@@ -132,20 +142,24 @@ class BeamSearch(object):
 
     def _get_decode(self, sess, enc_out, enc_len, prev_char_id, rnn_state_packed):
         """build decoder output"""
+        N = len(prev_char_id)
         feed_dict = {
-                    self.h: enc_out,
-                    self.h_len: enc_len,
+                    self.h: np.tile(enc_out, (N, 1)),
+                    self.h_len: np.tile(enc_len, N),
                     self.prev_char_id: prev_char_id,
                     self.rnn_state_packed: rnn_state_packed
                     }
-        logits, state, alphas = sess.run([self.cur_char, self.rnn_state, self.alphas], feed_dict)
-        return logits[0], state
+        logits, states, alphas = sess.run([self.cur_char, self.rnn_state, self.alphas], feed_dict)
+        return logits, states
 
     def _get_init(self, sess):
         """get rnn init state"""
         return sess.run(self.init_state)
 
-    def _select_best_k(self, beam_set, norm=True):
+    def _pack_state(self, state):
+        return (state[0].reshape(1,-1), state[1].reshape(1,-1))
+
+    def _select_best_k(self, beam_set, norm=False):
         """select top k BeamStatei
         Args:
             beam_set: list, beam set.
@@ -159,6 +173,7 @@ class BeamSearch(object):
             log_prob = [b.log_prob for b in beam_set]
 
         idx = np.argsort(log_prob)[-self.beam_size:]
+
         return [beam_set[i] for i in idx]
         
 
