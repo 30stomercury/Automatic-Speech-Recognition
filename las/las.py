@@ -180,8 +180,10 @@ class LAS:
         dec_steps = tf.shape(y)[1] # => time steps in this batch
         h, enc_state, enc_len = self.listener(audio, audiolen)
         logits, ctc_logits, alphas = self.speller(h, enc_len, dec_steps, y)
+
         # Scale to [0, 255]
         attention_images = alphas*255
+
         # compute loss
         loss = self._get_loss(logits, y, charlen)
         if self.args.ctc:
@@ -224,7 +226,10 @@ class LAS:
         return logits, y_hat
     
     def _get_loss(self, logits, y, charlen):
-        y_ = tf.one_hot(y, self.args.vocab_size)
+        if self.args.label_smoothing:
+            y_ = label_smoothing(tf.one_hot(y, depth=len(self.char2id)))
+        else:
+            y_ = tf.one_hot(y, self.args.vocab_size)
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_)
         mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
         loss = tf.reduce_sum(

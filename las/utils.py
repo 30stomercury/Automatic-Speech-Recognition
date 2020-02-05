@@ -23,6 +23,13 @@ def mask(original_len, padded_len):
     mask = y <= original_len
     return tf.cast(mask, tf.float32)
 
+def label_smoothing(inputs, epsilon=0.1):
+    """label smoothing
+    Reference: https://github.com/Kyubyong/transformer/blob/master/tf1.2_legacy/modules.py
+    """
+    K = inputs.get_shape().as_list()[-1] 
+    return ((1-epsilon) * inputs) + (epsilon / K)
+
 def attention(h, state, h_dim, s_dim, attention_size, seq_len):
     """Bahdanau attention
     args:

@@ -25,7 +25,7 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=T
         else:
             sort_idx = featlen.argsort()
             if is_training:
-                window = 1000
+                window = 4000
                 for i in range(len(sort_idx) // window):
                     sort_idx[i*window:(i+1)*window] = sort_idx[i*window:(i+1)*window][np.random.permutation(window)]
             feats_, featlen_ = feats[sort_idx], featlen[sort_idx]

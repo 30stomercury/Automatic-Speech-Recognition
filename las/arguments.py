@@ -68,6 +68,10 @@ def parse_args():
                         type=int, 
                         default=10, 
                         help='The number of training epochs.')
+    parser.add_argument('--label_smoothing', 
+                        type=str2bool, 
+                        default=True, 
+                        help='Apply label smoothing.')
     # hparams of Listener
     parser.add_argument('--enc_units',
                         type=int,
@@ -119,7 +123,7 @@ def parse_args():
                         type=int,
                         default=10,
                         help='Size for beam search.')
-    # save path
+    # save dir
     parser.add_argument('--train_data_path',
                         type=str,
                         default='./data/LibriSpeech_train/train-clean-100',
