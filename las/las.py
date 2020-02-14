@@ -29,7 +29,7 @@ class Speller:
 
             if self.args.ctc:
                 ctc_logits = tf.layers.dense(
-                                enc_out, self.args.vocab_size)
+                                enc_out, self.args.vocab_size+1)
             else:
                 ctc_logits = None
 
@@ -185,9 +185,12 @@ class LAS:
         attention_images = alphas*255
 
         # compute loss
-        loss = self._get_loss(logits, y, charlen)
+        att_loss = self._get_loss(logits, y, charlen)
         if self.args.ctc:
-            loss += 0.5*self._get_ctc_loss(ctc_logits, y, charlen)
+            ctc_loss = self._get_ctc_loss(ctc_logits, y, enc_len)
+            loss = self.args.ctc_weight*ctc_loss + att_loss
+        else:
+            loss = att_loss
         global_step = tf.train.get_or_create_global_step()
         optimizer = tf.train.AdamOptimizer(self.args.lr)
         # gradient clipping
@@ -236,17 +239,18 @@ class LAS:
             cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
         return loss
 
-    def _get_ctc_loss(self, ctc_logits, y, charlen):
+    def _get_ctc_loss(self, ctc_logits, y, enc_len):
         labels = tf.cast(y, tf.int64)
-        idx = tf.where(tf.not_equal(labels, 0))
+        enc_len = tf.cast(enc_len, tf.int32)
+        idx = tf.where(tf.not_equal(labels, 0))[:-1]
         sparse = tf.SparseTensor(idx, tf.gather_nd(labels, idx), tf.shape(labels, out_type=tf.int64))
         sparse = tf.cast(sparse, tf.int32)
         return tf.reduce_mean(
                 tf.nn.ctc_loss(
                         sparse,
                         inputs=ctc_logits,
-                        sequence_length=charlen,
+                        sequence_length=enc_len,
                         preprocess_collapse_repeated=False,
                         ctc_merge_repeated=True,
-                        ignore_longer_outputs_than_inputs=True,
+                        ignore_longer_outputs_than_inputs=False,
                         time_major=False))

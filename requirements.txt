@@ -4,3 +4,4 @@ numpy==1.17.4
 librosa==0.7.1 
 speechpy
 tqdm
+sox

@@ -36,6 +36,14 @@ try:
     dev_charlen = np.load(args.feat_path+"/dev_charlen.npy", allow_pickle=True)
     special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     char2id, id2char = lookup_dicts(special_chars)
+    if args.augmentation:
+        aug_feats = np.load(args.feat_path+"/aug_feats0.9.npy", allow_pickle=True)
+        aug_featlen = np.load(args.feat_path+"/aug_featlen0.9.npy", allow_pickle=True)
+        train_feats = np.append(train_feats, aug_feats)
+        train_featlen = np.append(train_featlen, aug_featlen)
+        train_chars = np.append(train_chars, train_chars)
+        train_charlen = np.append(train_charlen, train_charlen)
+        
 
 # process features
 except:
@@ -51,8 +59,6 @@ train_charlen = train_charlen[index]
 
 # init model 
 args.vocab_size = len(char2id)
-if args.ctc:
-    args.vocab_size += 1
 las =  LAS(args, Listener, Speller, char2id, id2char)
 
 # build batch iterator
@@ -76,7 +82,12 @@ if not os.path.exists(args.save_path):
 if not os.path.exists(args.result_path):
     os.makedirs(args.result_path)
 saver = tf.train.Saver(max_to_keep=100)
-ckpt = tf.train.latest_checkpoint(args.save_path)
+
+if args.restore > 0:
+    ckpt = args.save_path + "/las_E{}".format(args.restore)
+else:
+    ckpt = tf.train.latest_checkpoint(args.save_path)
+
 if ckpt is None:
     sess.run(tf.global_variables_initializer())
 else:

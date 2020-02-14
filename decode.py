@@ -2,6 +2,7 @@ from las.beam_search import BeamSearch
 from las.arguments import *
 from las.las import *
 from las.utils import *
+from las.language_model import *
 from data_loader import *
 from preprocess import *
 import numpy as np
@@ -9,6 +10,7 @@ import tensorflow as tf
 from tqdm import tqdm
 import os
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 # arguments
 args = parse_args()
@@ -35,8 +37,17 @@ except:
 args.vocab_size = len(char2id)
 las =  LAS(args, Listener, Speller, char2id, id2char)
 
+# n-gram language model
+if args.apply_lm:
+    print("Apply N gram Language model...")
+    corpus, _ = data_preparation('./data/LibriSpeech/LibriSpeech_train/train-clean-100')
+    wordChars = string.ascii_uppercase[:26]
+    lm = LanguageModel(corpus, ' .'+wordChars, ' .'+wordChars)
+else:
+    lm = None
+
 # build search decoder
-bs = BeamSearch(args, las, char2id)
+bs = BeamSearch(args, las, char2id, id2char, lm)
 
 # create restore dict for decode scope
 var = {}
@@ -55,6 +66,7 @@ for v in var_all:
 # restore
 saver = tf.train.Saver(var_list=var)
 ckpt = tf.train.latest_checkpoint(args.save_path)
+#ckpt = "model/las_v8/las_E155"
 
 print("-----------ckpt: {}-----------".format(ckpt))
 
@@ -84,10 +96,18 @@ dev_feats, dev_featlen, dev_chars = \
             dev_feats[sorted_id], dev_featlen[sorted_id], dev_chars[sorted_id]
 res = []
 for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_chars):
-    xs = (np.expand_dims(audio, 0), np.expand_dims(audiolen, 0))
-    beam_states = bs.decode(sess, xs)
+    if args.convert_rate*audiolen > 200:
+        m = audiolen // 2
+        hyp = ""
+        for i in range(2):
+            xs = (np.expand_dims(audio[i*m:(i+1)*m], 0), np.expand_dims(m, 0))
+            beam_states = bs.decode(sess, xs)
+            hyp += convert_idx_to_string(beam_states[-1].char_ids[1:], id2char)
+    else:
+        xs = (np.expand_dims(audio, 0), np.expand_dims(audiolen, 0))
+        beam_states = bs.decode(sess, xs)
+        hyp = convert_idx_to_string(beam_states[-1].char_ids[1:], id2char)
     ref = convert_idx_to_string(y, id2char)
-    hyp = convert_idx_to_string(beam_states[-1].char_ids[1:], id2char)
     res.append(wer(ref.split(" "), hyp.split(" ")))
     print("REF |", ref)
     print("HYP |", hyp)

@@ -42,6 +42,10 @@ def parse_args():
                         type=str2bool, 
                         default=True, 
                         help='Apply cmvn or not.')
+    parser.add_argument('--augmentation', 
+                        type=str2bool, 
+                        default=True, 
+                        help='Apply data augmentation or not.')
     # training arguments
     parser.add_argument('--bucketing', 
                         type=str2bool, 
@@ -68,6 +72,10 @@ def parse_args():
                         type=int, 
                         default=10, 
                         help='The number of training epochs.')
+    parser.add_argument('--restore', 
+                        type=int, 
+                        default=-1, 
+                        help='The epoch you want to restore.')
     parser.add_argument('--label_smoothing', 
                         type=str2bool, 
                         default=True, 
@@ -118,23 +126,31 @@ def parse_args():
                         type=str2bool, 
                         default=False, 
                         help='Apply ctc.')
+    parser.add_argument('--ctc_weight', 
+                        type=float, 
+                        default=0.2, 
+                        help='Weighting of ctc.')
     # beam search
     parser.add_argument('--beam_size',
                         type=int,
                         default=10,
                         help='Size for beam search.')
+    parser.add_argument('--apply_lm', 
+                        type=str2bool, 
+                        default=False, 
+                        help='Apply language model.')
     # save dir
     parser.add_argument('--train_data_path',
                         type=str,
-                        default='./data/LibriSpeech_train/train-clean-100',
+                        default='./data/LibriSpeech/LibriSpeech_train/train-clean-100',
                         help='')
     parser.add_argument('--dev_data_path',
                         type=str,
-                        default='./data/LibriSpeech_dev/dev-clean',
+                        default='./data/LibriSpeech/LibriSpeech_dev/dev-clean',
                         help='')
     parser.add_argument('--feat_path', 
                         type=str, 
-                        default='./data/features', 
+                        default='./data/LibriSpeech/features', 
                         help='Path to save features.')
     parser.add_argument('--result_path',
                         type=str,

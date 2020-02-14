@@ -23,7 +23,7 @@ def mask(original_len, padded_len):
     mask = y <= original_len
     return tf.cast(mask, tf.float32)
 
-def label_smoothing(inputs, epsilon=0.1):
+def label_smoothing(inputs, epsilon=0.01):
     """label smoothing
     Reference: https://github.com/Kyubyong/transformer/blob/master/tf1.2_legacy/modules.py
     """

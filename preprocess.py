@@ -1,4 +1,3 @@
-from tensor2tensor.layers import common_audio
 import tensorflow as tf
 import librosa
 import speechpy
@@ -6,6 +5,7 @@ import numpy as np
 from glob import glob
 import string
 import os
+import sox
 from tqdm import tqdm
 from las.arguments import *
 
@@ -29,8 +29,30 @@ def data_preparation(libri_path):
         for line in f.readlines():
             line_ = line.split(" ")
             audio_path.append(path+"/"+line_[0]+".flac")
-            texts.append(line[len(line_[0])+1:-1])
+            texts.append(line[len(line_[0])+1:-1].replace("'",""))
     return texts, audio_path
+
+def speed_augmentation(filelist, target_folder, speed_list):
+    """Speed Augmentation
+    
+    Args:
+        path: Path to audio files.
+        target_folder: Folder of augmented audios.
+    """
+    audio_path = []
+    aug_generator = sox.Transformer()
+    print("Total audios:", len(filelist))
+    for speed in speed_list:
+        aug_generator.speed(speed)
+        target_folder_ = target_folder+"_"+str(speed)
+        if not os.path.exists(target_folder_):
+            os.makedirs(target_folder_)
+        for source_filename in tqdm(filelist):
+            file_id = source_filename.split("/")[-1]
+            save_filename = target_folder_+"/"+file_id.split(".")[0]+"_"+str(speed)+"."+file_id.split(".")[1] 
+            aug_generator.build(source_filename, save_filename)
+            audio_path.append(save_filename)
+    return audio_path
 
 def CMVN(audios):
     # https://github.com/tensorflow/tensor2tensor/blob/master/tensor2tensor/data_generators/speech_recognition.py
@@ -42,84 +64,6 @@ def CMVN(audios):
     audios = (audios - mean) * tf.rsqrt(variance + var_epsilon)
     return audios
 
-def process_audios_batch(audio_path, 
-                         sess, 
-                         prepro_batch=128, 
-                         sample_rate=22050,
-                         frame_step=10, 
-                         frame_length=25,
-                         feat_dim = 40,
-                         feat_type='fbank',
-                         dither=0,
-                         cmvn=True):
-    """GPU accerated audio features extracting in tensorflow
-
-    Args:
-        audio_path: List of path of audio files.
-        sess: Tf session to execute the graph for feature extraction.
-        prepro_batch: Batch size for preprocessing audio features.
-        frame_step: Step size in ms.
-        feat_dim: Feature dimension.
-        feat_type: Types of features you want to apply.
-
-    Returns:
-        feats: List of features with variable length L, 
-               each element is in the shape of (L, feat_dim).
-        featlen: List of feature length.
-    """    
-
-    if feat_type != "fbank":
-        raise NotImplementedError(
-                "Only support fbank.")
-
-    # build extacting graph
-    input_audio = tf.placeholder(dtype=tf.float32, shape=[None, None])
-    if feat_type == 'fbank':
-        mel_fbanks = common_audio.compute_mel_filterbank_features(
-            input_audio, sample_rate=sample_rate, dither=dither, frame_step=frame_step, frame_length=frame_length, num_mel_bins=feat_dim, apply_mask=True)
-        mel_fbanks = tf.reduce_sum(mel_fbanks, -1)
-    if cmvn:
-        mel_fbanks = CMVN(mel_fbanks)
-
-    def extract_feat(audio_batch, len_batch, fs):
-        max_len = max(len_batch)
-        audio_padded = np.zeros([prepro_batch, max_len], dtype=np.float32)
-        for i in range(len(audio_batch)):
-            audio_padded[i][:len(audio_batch[i])] = audio_batch[i]
-        feat = sess.run(mel_fbanks, feed_dict={input_audio: audio_padded})
-        # compute the feature length:
-        feat_len = np.array(len_batch) // int(fs * frame_step / 1e3) + 1
-        feat_len = feat_len.astype(np.int32)
-        return feat, feat_len
-        
-    audio_batch = []
-    len_batch = []
-    feats = []
-    featlen = []
-    # start extracting audio feature in a batch manner:
-    for p in audio_path:
-        audio, fs = librosa.load(p)
-        audio_batch.append(audio)
-        len_batch.append(len(audio))
-        if len(audio_batch) == prepro_batch:
-            feat, feat_len = extract_feat(audio_batch, len_batch, fs)
-            # remove paddings of audios batch:
-            for index, l in enumerate(feat_len):
-                feats.append(feat[index][:l])
-            featlen = np.concatenate([featlen, feat_len])
-            audio_batch = []
-            len_batch = []
-            print("Processed samples: {}/{}".format(len(feats), len(audio_path)))
-
-    if len(audio_batch) % prepro_batch != 0:
-        feat, feat_len = extract_feat(audio_batch, len_batch, fs)
-        # remove paddings:
-        for index, l in enumerate(feat_len):
-            feats.append(feat[index][:l])
-        featlen = np.concatenate([featlen, feat_len])
-        print("Processed samples: {}/{}".format(len(feats), len(audio_path)))
-
-    return np.array(feats), featlen.astype(np.int32)
 
 def process_audios(audio_path,
                    frame_step=10, 
@@ -138,11 +82,16 @@ def process_audios(audio_path,
     featlen = []
     for p in tqdm(audio_path):
 
-        audio, fs = librosa.load(p)
+        try:
+            audio, fs = librosa.load(p)
+        except:
+            print(p)
+            pass
 
         if feat_type == 'mfcc':
             assert feat_dim == 13, "13 is commonly used"
             mfcc = speechpy.feature.mfcc(audio, fs, frame_length=frame_length/1000, frame_stride=frame_step/1000, num_cepstral=feat_dim)
+            
             if cmvn:
                 mfcc = speechpy.processing.cmvn(mfcc, True)
             mfcc_39 = speechpy.feature.extract_derivative_feature(mfcc)
@@ -198,13 +147,14 @@ def lookup_dicts(special_chars):
 def main():
     # arguments
     args = parse_args()
-
+    
     # define data generator
     train_libri_path = args.train_data_path
     dev_libri_path = args.dev_data_path
     train_texts, train_audio_path = data_preparation(train_libri_path)
     dev_texts, dev_audio_path = data_preparation(dev_libri_path)
-
+    
+    """
     print("Process train/dev features...")
     if not os.path.exists(args.feat_path):
         os.makedirs(args.feat_path)
@@ -223,8 +173,8 @@ def main():
     train_feats, train_featlen = process_audios(train_audio_path,
                                                 frame_step=10, 
                                                 frame_length=25,
-                                                feat_dim=40,
-                                                feat_type='fbank',
+                                                feat_dim=13,
+                                                feat_type='mfcc',
                                                 cmvn=True)
     np.save(args.feat_path+"/train_feats.npy", train_feats)    
     np.save(args.feat_path+"/train_featlen.npy", train_featlen)
@@ -233,11 +183,26 @@ def main():
     dev_feats, dev_featlen = process_audios(dev_audio_path,
                                             frame_step=10, 
                                             frame_length=25,
-                                            feat_dim=40,
-                                            feat_type='fbank',
+                                            feat_dim=13,
+                                            feat_type='mfcc',
                                             cmvn=True)
     np.save(args.feat_path+"/dev_feats.npy", dev_feats)
     np.save(args.feat_path+"/dev_featlen.npy", dev_featlen)
+    """
+
+    # augmentation
+    if args.augmentation:
+        aug_audio_path = speed_augmentation(filelist=train_audio_path,
+                                            target_folder="data/LibriSpeech/LibriSpeech_aug", 
+                                            speed_list=[1.1])
+        aug_feats, aug_featlen = process_audios(aug_audio_path,
+                                                    frame_step=10, 
+                                                    frame_length=25,
+                                                    feat_dim=13,
+                                                    feat_type='mfcc',
+                                                    cmvn=True)
+        np.save(args.feat_path+"/aug_feats1.2.npy", aug_feats)    
+        np.save(args.feat_path+"/aug_featlen1.2.npy", aug_featlen)
 
 if __name__ == '__main__':
     main()
