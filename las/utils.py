@@ -145,37 +145,33 @@ def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training)
             audio_len = (audio_len + audio_len % 2) / 2
     return rnn_out, states, audio_len
 
-def convert_idx_to_token_tensor(inputs, id2char):
+def convert_idx_to_token_tensor(inputs, id_to_token, unit="char"):
     """Converts int32 tensor to string tensor.
     Reference:
         https://github.com/Kyubyong/transformer/blob/master/utils.py
     """
     def my_func(inputs):
-        sent = "".join(id2char[elem] for elem in inputs)
+        sent = "".join(id_to_token[elem] for elem in inputs)
         sent = sent.split("<EOS>")[0].strip()
-        sent = sent.replace("<SPACE>", " ")
+        if unit == "char":
+            # replace <SPACE> with " "
+            sent = sent.replace("<SPACE>", " ") 
+        elif unit == "subword":
+            # replace the suffix </w> with " "
+            sent = sent.replace("</w>", " ") 
         return " ".join(sent.split())
 
     return tf.py_func(my_func, [inputs], tf.string)
 
-def convert_idx_to_string(inputs, id2char):
-    """Converts int32 ndarray to string."""
+def convert_idx_to_string(inputs, id_to_token, unit="char"):
+    """Converts int32 ndarray to string. (char or subword tokens)"""
 
-    sent =  "".join(id2char[elem] for elem in inputs)
+    sent =  "".join(id_to_token[elem] for elem in inputs)
     sent = sent.split("<EOS>")[0].strip()
-    sent = sent.replace("<SPACE>", " ") 
-    return " ".join(sent.split())
-
-def get_texts(y_hat, sess, num_batches, id2char):
-    output_id = []
-    output_char = []
-    for _ in range(num_batches):
-        pred = sess.run(y_hat)
-        output_id += pred.tolist()
-    for h in output_id:
-        sent = "".join(id2char[idx] for idx in h)
-        sent = sent.split("<EOS>")[0].strip()
+    if unit == "char":
+        # replace <SPACE> with " "
         sent = sent.replace("<SPACE>", " ") 
-        output_char.append(" ".join(sent.split()))
-
-    return output_char
+    elif unit == "subword":
+        # replace the suffix </w> with " "
+        sent = sent.replace("</w>", " ") 
+    return " ".join(sent.split())

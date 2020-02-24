@@ -8,6 +8,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 # arguments
 args = parse_args()
@@ -26,24 +27,35 @@ dev_texts, dev_audio_path = data_preparation(dev_libri_path)
 # load from previous output
 try:
     print("Load features...")
-    train_feats = np.load(args.feat_path+"/train_feats.npy", allow_pickle=True)
-    train_featlen = np.load(args.feat_path+"/train_featlen.npy", allow_pickle=True)
-    train_chars = np.load(args.feat_path+"/train_chars.npy", allow_pickle=True)
-    train_charlen = np.load(args.feat_path+"/train_charlen.npy", allow_pickle=True)
-    dev_feats = np.load(args.feat_path+"/dev_feats.npy", allow_pickle=True)
-    dev_featlen = np.load(args.feat_path+"/dev_featlen.npy", allow_pickle=True)
-    dev_chars = np.load(args.feat_path+"/dev_chars.npy", allow_pickle=True)
-    dev_charlen = np.load(args.feat_path+"/dev_charlen.npy", allow_pickle=True)
-    special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-    char2id, id2char = lookup_dicts(special_chars)
+    # train
+    train_feats = np.load(
+        args.feat_path+"/train_feats.npy", allow_pickle=True)
+    train_featlen = np.load(
+        args.feat_path+"/train_featlen.npy", allow_pickle=True)
+    train_tokens = np.load(
+        args.feat_path+"/train_{}s.npy".format(args.unit), allow_pickle=True)
+    train_tokenlen = np.load(
+        args.feat_path+"/train_{}len.npy".format(args.unit), allow_pickle=True)
+    # dev
+    dev_feats = np.load(
+        args.feat_path+"/dev_feats.npy", allow_pickle=True)
+    dev_featlen = np.load(
+        args.feat_path+"/dev_featlen.npy", allow_pickle=True)
+    dev_tokens = np.load(
+        args.feat_path+"/dev_{}s.npy".format(args.unit), allow_pickle=True)
+    dev_tokenlen = np.load(
+        args.feat_path+"/dev_{}len.npy".format(args.unit), allow_pickle=True)
+    # aug
     if args.augmentation:
-        aug_feats = np.load(args.feat_path+"/aug_feats0.9.npy", allow_pickle=True)
-        aug_featlen = np.load(args.feat_path+"/aug_featlen0.9.npy", allow_pickle=True)
-        train_feats = np.append(train_feats, aug_feats)
-        train_featlen = np.append(train_featlen, aug_featlen)
-        train_chars = np.append(train_chars, train_chars)
-        train_charlen = np.append(train_charlen, train_charlen)
-        
+        for factor in [0.9, 1.1]:
+            aug_feats = np.load(
+                    args.feat_path+"/aug_feats{}.npy".format(factor), allow_pickle=True)
+            aug_featlen = np.load(
+                    args.feat_path+"/aug_featlen{}.npy".format(factor), allow_pickle=True)
+            train_feats = np.append(train_feats, aug_feats)
+            train_featlen = np.append(train_featlen, aug_featlen)
+            train_tokens = np.append(train_tokens, train_tokens[:len(aug_feats)])
+            train_tokenlen = np.append(train_tokenlen, train_tokenlen[:len(aug_feats)])
 
 # process features
 except:
@@ -51,22 +63,41 @@ except:
 
 # Clip text length to predefined decoding steps
 # train
-index = train_charlen < args.maxlen
+index = train_tokenlen < args.maxlen
 train_feats = train_feats[index]
 train_featlen = train_featlen[index]
-train_chars = train_chars[index]
-train_charlen = train_charlen[index]
+train_tokens = train_tokens[index]
+train_tokenlen = train_tokenlen[index]
+
+# tokenize tools
+special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
+tokenizer = text_encoder(args.unit, special_tokens, args.corpus_path)
+args.vocab_size = tokenizer.get_vocab_size()
+id_to_token = tokenizer.id_to_token
 
 # init model 
-args.vocab_size = len(char2id)
-las =  LAS(args, Listener, Speller, char2id, id2char)
+las =  LAS(args, Listener, Speller, id_to_token)
 
 # build batch iterator
 print("Build batch iterator...")
 train_iter, num_train_batches = batch_gen(
-            train_feats, train_chars, train_featlen, train_charlen, args.batch_size, args.feat_dim, args.bucketing, is_training=True)
+                                    train_feats, 
+                                    train_tokens, 
+                                    train_featlen, 
+                                    train_tokenlen, 
+                                    args.batch_size, 
+                                    args.feat_dim, 
+                                    args.bucketing, 
+                                    is_training=True)
 dev_iter, num_dev_batches = batch_gen(
-            dev_feats, dev_chars, dev_featlen, dev_charlen, args.batch_size, args.feat_dim, True, is_training=False)
+                                    dev_feats, 
+                                    dev_tokens, 
+                                    dev_featlen, 
+                                    dev_tokenlen, 
+                                    args.batch_size, 
+                                    args.feat_dim, 
+                                    True, 
+                                    is_training=False)
 train_xs, train_ys = train_iter.get_next()
 dev_xs, dev_ys = dev_iter.get_next()
 
@@ -74,13 +105,12 @@ dev_xs, dev_ys = dev_iter.get_next()
 print("Build train, inference graph (please wait)...")
 loss, train_op, global_step, train_logits, alphas, train_summary = las.train(train_xs, train_ys)
 dev_logits, y_hat = las.inference(dev_xs)
-sample = convert_idx_to_token_tensor(y_hat[0], id2char)
 
 # saver
 if not os.path.exists(args.save_path):
     os.makedirs(args.save_path)
-if not os.path.exists(args.result_path):
-    os.makedirs(args.result_path)
+if not os.path.exists(args.corpus_path):
+    os.makedirs(args.corpus_path)
 saver = tf.train.Saver(max_to_keep=100)
 
 if args.restore > 0:
@@ -102,7 +132,8 @@ summary_writer = tf.summary.FileWriter(args.summary_path, sess.graph)
 
 # info
 print("INFO: Training command:"," ".join(sys.argv))
-print("INFO: Total weights:",np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
+print("INFO: Total weights:", 
+            np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
 
 # training
 training_steps = num_train_batches * args.epoch
@@ -110,8 +141,13 @@ print("INFO: Total num train batches:", num_train_batches)
 print("Training...")
 loss_ = []
 for step in range(training_steps):
-    batch_loss, gs, _, summary_, logits, train_gt = sess.run([loss, global_step, train_op, train_summary, train_logits, train_ys])
-    print("HYP: {}\nREF: {}".format(convert_idx_to_string(np.argmax(logits, -1)[0], id2char), convert_idx_to_string(train_gt[0][0], id2char)))
+    batch_loss, gs, _, summary_, logits, train_gt = sess.run(
+                        [loss, global_step, train_op, train_summary, train_logits, train_ys])
+
+    print("HYP: {}\nREF: {}".format(
+        convert_idx_to_string(np.argmax(logits, -1)[0], id_to_token, args.unit), 
+        convert_idx_to_string(train_gt[0][0], id_to_token, args.unit)))
+
     print("INFO: num_step: {}, loss: {}".format(gs, batch_loss))
     summary_writer.add_summary(summary_, gs)
     loss_.append(batch_loss)
@@ -122,10 +158,5 @@ for step in range(training_steps):
                                                 e_, gs, ave_loss, 0))
         saver.save(sess, args.save_path+"/las_E{}".format(e_))      
         loss_ = []  
-        # eval
-        #print("Inference...")
-        #texts = get_texts(y_hat, sess, num_dev_batches, id2char) 
-        #with open(args.result_path+"/texts_E{}.txt".format(e_), 'w') as fout:
-        #    fout.write("\n".join(texts))
 
 summary_writer.close()

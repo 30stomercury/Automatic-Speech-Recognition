@@ -143,7 +143,7 @@ class Speller:
 
 class LAS:
 
-    def __init__(self, args, listener, speller, id2char):
+    def __init__(self, args, listener, speller, id_to_token):
         '''Consturct Listen attend ande spell objects.
         Args:
             args: Include model/train/inference parameters that are packed in arguments.py
@@ -153,7 +153,7 @@ class LAS:
         self.args = args
         self.listener = Listener(args)
         self.speller = Speller(args)
-        self.id2char = id2char
+        self.id_to_token = id_to_token
 
     def train(self, xs, ys):
         ''' Buid decoder encoder network, compute loss.
@@ -196,11 +196,11 @@ class LAS:
             train_op = optimizer.apply_gradients(zip(grad, variables), global_step=global_step)
         else:
             train_op = optimizer.minimize(loss, global_step=global_step)
-        # sample one utt
+        # sample one utterance
         sample = convert_idx_to_token_tensor(
-                    tf.argmax(logits, -1)[0], self.id2char)
+                    tf.argmax(logits, -1)[0], self.id_to_token, self.args.unit)
         ref = convert_idx_to_token_tensor(
-                    y[0], self.id2char)
+                    y[0], self.id_to_token, self.args.unit)
         # summary
         tf.summary.scalar("loss", loss)
         tf.summary.scalar("global_step", global_step)

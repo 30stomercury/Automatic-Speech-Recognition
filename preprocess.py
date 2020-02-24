@@ -8,6 +8,8 @@ import os
 import sox
 from tqdm import tqdm
 from las.arguments import *
+from tokenizers import CharBPETokenizer
+
 
 def data_preparation(libri_path):
     """Prepare texts and its corresponding audio file path
@@ -30,6 +32,7 @@ def data_preparation(libri_path):
             line_ = line.split(" ")
             audio_path.append(path+"/"+line_[0]+".flac")
             texts.append(line[len(line_[0])+1:-1].replace("'",""))
+
     return texts, audio_path
 
 def speed_augmentation(filelist, target_folder, speed_list):
@@ -53,17 +56,6 @@ def speed_augmentation(filelist, target_folder, speed_list):
             aug_generator.build(source_filename, save_filename)
             audio_path.append(save_filename)
     return audio_path
-
-def CMVN(audios):
-    # https://github.com/tensorflow/tensor2tensor/blob/master/tensor2tensor/data_generators/speech_recognition.py
-    # per utterance normalization
-    var_epsilon = 1e-09
-    mean = tf.reduce_mean(audios, keepdims=True, axis=1)
-    variance = tf.reduce_mean(tf.squared_difference(audios, mean),
-                              keepdims=True, axis=1)
-    audios = (audios - mean) * tf.rsqrt(variance + var_epsilon)
-    return audios
-
 
 def process_audios(audio_path,
                    frame_step=10, 
@@ -107,35 +99,33 @@ def process_audios(audio_path,
 
     return feats, np.array(featlen).astype(np.int32)
 
-def process_texts(special_chars, texts):
+def process_texts(special_tokens, texts, tokenizer):
     """
     Returns:
-        chars: List of index sequences.
-        charlen: List of length of sequences.
+        tokens: List of index sequences.
+        tokenlen: List of length of sequences.
     """
-
-    charlen = []
-    chars = []
-    char2id, id2char = lookup_dicts(special_chars)
+    tokenlen = []
+    tokens = []
     for sentence in tqdm(texts):
         sentence = sentence.translate(str.maketrans('', '', string.punctuation))
-        char_converted = [char2id[char] if char != ' ' else char2id['<SPACE>'] for char in list(sentence)]
-        chars.append(char_converted + [char2id['<EOS>']])
-        charlen.append(len(chars[-1]))
+        sentence_converted = tokenizer.encode(sentence, with_eos=True)
+        tokens.append(sentence_converted)
+        tokenlen.append(len(tokens[-1]))
 
-    return np.array(chars), np.array(charlen).astype(np.int32), char2id, id2char
+    return np.array(tokens), np.array(tokenlen).astype(np.int32)
 
-def lookup_dicts(special_chars):
+def lookup_dicts(special_tokens):
     """
     Args:
-        special_chars: special charactors, <PAD>, <SOS>, <EOS>, <SPACE>
+        special_tokens: special charactors, <PAD>, <SOS>, <EOS>, <SPACE>
     Returns:
         char2id: dict, from character to index.
         id2char: dict, from index to character.
     """
 
     alphas = list(string.ascii_uppercase[:26])
-    chars = special_chars + alphas
+    chars = special_tokens + alphas
     char2id = {}
     id2char = {}
     for i, c in enumerate(chars):
@@ -143,6 +133,90 @@ def lookup_dicts(special_chars):
         id2char[i] = c
     return char2id, id2char
 
+class text_encoder:
+    "char tokenizarion and subword tokenization" 
+    def __init__(self, unit, special_tokens, corpus_path):
+        """
+        Args:
+            unit: unit used for encoding strings, char or subword.
+            special_tokens: special charactors, <PAD>, <SOS>, <EOS>, <SPACE>
+            corpus_path: path of training corpus.
+        """
+        self.unit = unit
+        self.special_tokens = special_tokens
+
+        # define char2id and id2char used in _encode_chars()
+        if self.unit == "char":
+            self.char2id, self.id2char = lookup_dicts(special_tokens)
+            self.encode = self._encode_chars
+            self.id_to_token = self._id_to_char()
+
+        # utilize "tokenizers" library
+        elif self.unit == "subword":
+            self.train_subword_tokenizer(corpus_path)
+            self.encode = self._encode_subwords
+            self.id_to_token = self._id_to_subword()
+        else:
+            raise Exception('Unit not support!') 
+
+    def get_vocab_size(self):
+        if self.unit == "char":
+            return len(self.id2char)
+        else:
+            return self.subword_tokenizer.get_vocab_size()   
+        
+    def _encode_chars(self, sentence, with_eos):
+        """ 
+        Args:
+            sentence: str, texts to be encoded.
+            with_eos: end with <EOS> token.
+        Returns:
+            tokens: list, encoded sequence.
+        """
+        tokens = [self.char2id[char] if char != ' ' else self.char2id['<SPACE>'] for char in list(sentence)]
+        if with_eos:
+            tokens += [self.char2id['<EOS>']]
+        return tokens
+
+    def _encode_subwords(self, sentence, with_eos):
+        """ 
+        Args:
+            sentence: str, texts to be encoded.
+            with_eos: end with <EOS> token.
+        Returns:
+            tokens: list, encoded sequence.
+        """
+        tokens = self.tokenizer.encode(sentence).ids
+        if with_eos:
+            tokens += self.tokenizer.encode("<EOS>").ids
+        return tokens
+
+    def _id_to_char(self):
+        return self.id2char
+
+    def _id_to_subword(self):
+        id2subword = {}
+        for i in range(self.get_vocab_size()):
+            id2subword[self.subword_tokenizer.id_to_token(i)] = i
+        return id2subword
+
+    def train_subword_tokenizer(self, path):
+        """Train subword tokenizers for subword encoding
+        ref: https://github.com/huggingface/tokenizers
+        """
+        try:
+            tokenizer = CharBPETokenizer(vocab_file=path+"bpe-vocab.json", merges_file=path+"bpe-merges.txt")
+        except:
+            tokenizer = CharBPETokenizer()
+            tokenizer.train(
+                [path+"train_gt.txt"],
+                vocab_size=500,
+                min_frequency=2,
+                show_progress=True,
+                special_tokens=self.special_tokens[:3]+["<unk>"],
+            )
+            tokenizer.save(path, "bpe")
+        self.subword_tokenizer = tokenizer
 
 def main():
     # arguments
@@ -153,20 +227,32 @@ def main():
     dev_libri_path = args.dev_data_path
     train_texts, train_audio_path = data_preparation(train_libri_path)
     dev_texts, dev_audio_path = data_preparation(dev_libri_path)
+
+    # save to corpus
+    with open(args.corpus_path+"/train_gt.txt", 'w') as fout:
+        fout.write("\n".join(train_texts))
+
     
-    """
     print("Process train/dev features...")
     if not os.path.exists(args.feat_path):
         os.makedirs(args.feat_path)
 
     # texts
-    special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-    train_chars, train_charlen, char2id, id2char = process_texts(special_chars, train_texts)
-    dev_chars, dev_charlen, _, _ = process_texts(special_chars, dev_texts)
-    np.save(args.feat_path+"/train_chars.npy", train_chars)
-    np.save(args.feat_path+"/train_charlen.npy", train_charlen)
-    np.save(args.feat_path+"/dev_chars.npy", dev_chars)
-    np.save(args.feat_path+"/dev_charlen.npy", dev_charlen)
+    special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
+    tokenizer = text_encoder(args.unit, special_tokens, args.corpus_path)
+    train_chars, train_charlen = process_texts(
+                                    special_tokens, 
+                                    train_texts, 
+                                    tokenizer)
+    dev_chars, dev_charlen = process_texts(
+                                    special_tokens, 
+                                    dev_texts, 
+                                    tokenizer)
+    # save text features
+    np.save(args.feat_path+"/train_{}s.npy".format(args.unit), train_chars)
+    np.save(args.feat_path+"/train_{}len.npy".format(args.unit), train_charlen)
+    np.save(args.feat_path+"/dev_{}s.npy".format(args.unit), dev_chars)
+    np.save(args.feat_path+"/dev_{}len.npy".format(args.unit), dev_charlen)
 
     # audios
     print("Process train audios...")
@@ -188,7 +274,6 @@ def main():
                                             cmvn=True)
     np.save(args.feat_path+"/dev_feats.npy", dev_feats)
     np.save(args.feat_path+"/dev_featlen.npy", dev_featlen)
-    """
 
     # augmentation
     if args.augmentation:
