@@ -8,7 +8,6 @@ import sys
 import numpy as np
 import tensorflow as tf
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 # arguments
 args = parse_args()

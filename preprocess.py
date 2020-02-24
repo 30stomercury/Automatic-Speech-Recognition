@@ -186,9 +186,9 @@ class text_encoder:
         Returns:
             tokens: list, encoded sequence.
         """
-        tokens = self.tokenizer.encode(sentence).ids
+        tokens = self.subword_tokenizer.encode(sentence).ids
         if with_eos:
-            tokens += self.tokenizer.encode("<EOS>").ids
+            tokens += self.subword_tokenizer.encode("<EOS>").ids
         return tokens
 
     def _id_to_char(self):
@@ -209,7 +209,7 @@ class text_encoder:
         except:
             tokenizer = CharBPETokenizer()
             tokenizer.train(
-                [path+"train_gt.txt"],
+                [path+"/train_gt.txt"],
                 vocab_size=500,
                 min_frequency=2,
                 show_progress=True,
