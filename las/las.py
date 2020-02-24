@@ -17,9 +17,8 @@ class Listener:
 
 class Speller:
 
-    def __init__(self, args, char2id):
+    def __init__(self, args):
         self.args = args
-        self.char2id = char2id
         self.hidden_size = self.args.enc_units*2 # => output dimension of plstm h
         self._build_decoder_cell()
         self._build_char_embeddings()
@@ -144,19 +143,16 @@ class Speller:
 
 class LAS:
 
-    def __init__(self, args, listener, speller, char2id, id2char):
+    def __init__(self, args, listener, speller, id2char):
         '''Consturct Listen attend ande spell objects.
         Args:
             args: Include model/train/inference parameters that are packed in arguments.py
             listener: The encoder built in pyramid rnn.
             speller: The decoder with an attention layer.
         '''
-        if not args.vocab_size:
-            args.vocab = len(char2id)
         self.args = args
         self.listener = Listener(args)
-        self.speller = Speller(args, char2id)
-        self.char2id = char2id
+        self.speller = Speller(args)
         self.id2char = id2char
 
     def train(self, xs, ys):
@@ -201,15 +197,17 @@ class LAS:
         else:
             train_op = optimizer.minimize(loss, global_step=global_step)
         # sample one utt
-        sample = convert_idx_to_token_tensor(tf.argmax(logits, -1)[0], self.id2char)
-        gt = convert_idx_to_token_tensor(y[0], self.id2char)
+        sample = convert_idx_to_token_tensor(
+                    tf.argmax(logits, -1)[0], self.id2char)
+        ref = convert_idx_to_token_tensor(
+                    y[0], self.id2char)
         # summary
         tf.summary.scalar("loss", loss)
         tf.summary.scalar("global_step", global_step)
         tf.summary.text("sample_prediction", sample)
-        tf.summary.text("ground_truth", gt)
+        tf.summary.text("ground_truth", ref)
         tf.summary.image('attention_images', tf.expand_dims(attention_images, -1))
-        tf.summary.image('fbank_images', tf.expand_dims(audio, -1))
+        tf.summary.image('features', tf.expand_dims(audio, -1))
 
         summaries = tf.summary.merge_all()
 
@@ -230,7 +228,7 @@ class LAS:
     
     def _get_loss(self, logits, y, charlen):
         if self.args.label_smoothing:
-            y_ = label_smoothing(tf.one_hot(y, depth=len(self.char2id)))
+            y_ = label_smoothing(tf.one_hot(y, depth=self.args.vocab_size))
         else:
             y_ = tf.one_hot(y, self.args.vocab_size)
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_)
