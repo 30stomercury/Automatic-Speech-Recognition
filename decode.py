@@ -10,7 +10,7 @@ import tensorflow as tf
 from tqdm import tqdm
 import os
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 # arguments
 args = parse_args()
@@ -35,7 +35,7 @@ except:
 
 # init model 
 args.vocab_size = len(char2id)
-las =  LAS(args, Listener, Speller, char2id, id2char)
+las =  LAS(args, Listener, Speller, id2char)
 
 # n-gram language model
 if args.apply_lm:
@@ -66,7 +66,7 @@ for v in var_all:
 # restore
 saver = tf.train.Saver(var_list=var)
 ckpt = tf.train.latest_checkpoint(args.save_path)
-#ckpt = "model/las_v8/las_E155"
+ckpt = "model/las_v11/las_E594"
 
 print("-----------ckpt: {}-----------".format(ckpt))
 
@@ -96,7 +96,7 @@ dev_feats, dev_featlen, dev_chars = \
             dev_feats[sorted_id], dev_featlen[sorted_id], dev_chars[sorted_id]
 res = []
 for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_chars):
-    if args.convert_rate*audiolen > 200:
+    if args.convert_rate*audiolen > 280:
         m = audiolen // 2
         hyp = ""
         for i in range(2):
