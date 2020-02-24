@@ -5,3 +5,4 @@ librosa==0.7.1
 speechpy
 tqdm
 sox
+tokenizers
