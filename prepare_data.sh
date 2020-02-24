@@ -9,20 +9,32 @@ else
     mkdir data
 fi
 
-if [ $1 = "LibriSpeech" ]
+if [ $1 = "LibriSpeech-100" ]
 then
-    echo "LibriSpeech"
+    echo "Downloading LibriSpeech-100"
     wget http://www.openslr.org/resources/12/train-clean-100.tar.gz
-    wget http://www.openslr.org/resources/12/dev-clean.tar.gz
-    wget http://www.openslr.org/resources/12/test-clean.tar.gz
-
-    mkdir data/LibriSpeech
     tar -xvf train-clean-100.tar.gz
-    mv LibriSpeech data/LibriSpeech/LibriSpeech_train
 
-    tar -xvf dev-clean.tar.gz
-    mv LibriSpeech data/LibriSpeech/LibriSpeech_dev
+elif [ $1 = "LibriSpeech-360" ]
+then
+    echo "Downloading LibriSpeech-360"
+    wget http://www.openslr.org/resources/12/train-clean-360.tar.gz
+    tar -xvf train-clean-360.tar.gz
 
-    tar -xvf test-clean.tar.gz
-    mv LibriSpeech data/LibriSpeech/LibriSpeech_test
+else
+    echo "Please choose LibriSpeech-100 or -360"
+fi
 
+echo "Downloading LibriSpeech test/dev set"
+
+wget http://www.openslr.org/resources/12/dev-clean.tar.gz
+wget http://www.openslr.org/resources/12/test-clean.tar.gz
+
+mkdir data/$1
+mv LibriSpeech data/$1/LibriSpeech_train
+
+tar -xvf dev-clean.tar.gz
+mv LibriSpeech data/$1/LibriSpeech_dev
+
+tar -xvf test-clean.tar.gz
+mv LibriSpeech data/$1/LibriSpeech_test
