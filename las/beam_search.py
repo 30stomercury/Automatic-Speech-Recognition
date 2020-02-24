@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from las.language_model import *
 
 class BeamState(object):
 
@@ -20,11 +21,12 @@ class BeamState(object):
     
 class BeamSearch(object):
 
-    def __init__(self, args, las, char2id):
+    def __init__(self, args, las, char2id, id2char, language_model):
         """Beam search decoder
         args: arguments.
         las: LAS.
         char2id: dict, map from charactor to index.
+        id2char: dict, map from index to charactor.
         beam_size: int, beam size.
         """    
         self.args = args
@@ -32,6 +34,7 @@ class BeamSearch(object):
         self.speller = las.speller
         self.beam_size = args.beam_size
         self.char2id = char2id
+        self.id2char = id2char
         self.start_id = char2id['<SOS>']
         self.end_id = char2id['<EOS>']
 
@@ -40,6 +43,10 @@ class BeamSearch(object):
         self._build_encode()
         self._build_decode_step()
         print("Graph built")
+        
+        # Language Model
+        if args.apply_lm:
+            self.lm = language_model
 
     def decode(self, sess, xs):
         """
@@ -80,11 +87,17 @@ class BeamSearch(object):
                 topk_ids = np.argsort(logits[i])       # => argsort is in acending order
                 topk_probs = logits[i][topk_ids]
                 for j in range(self.args.vocab_size):
+                    if self.args.apply_lm:
+                        prefix = self._get_prefix(beam_set[i], self.lm.order)
+                        next_char = self._get_char(topk_ids[j])
+                        topk_probs[j] += np.log(self.lm.getBigramProb(prefix, next_char) + 1e-6)*0.1 
                     beam_set_bank.append(beam_set[i].update(
                                         topk_ids[j], topk_probs[j], (next_states[0][i], next_states[1][i])))
             beam_set = []                 
             # sort by log prob
-            topk_beam_state = self._select_best_k(beam_set_bank)
+            #norm = True if dec_step < 360 else False
+            norm = False
+            topk_beam_state = self._select_best_k(beam_set_bank, norm)
             for b in topk_beam_state:
                 if b.char_ids[-1] == self.end_id:
                     selected_beam_state.append(b)
@@ -95,7 +108,7 @@ class BeamSearch(object):
         if t == dec_step:
             selected_beam_state.extend(beam_set)
 
-        return self._select_best_k(selected_beam_state)
+        return self._select_best_k(selected_beam_state, norm)
 
     def _build_init(self, size):
         """get decoder initial state"""
@@ -155,6 +168,23 @@ class BeamSearch(object):
     def _get_init(self, sess):
         """get rnn init state"""
         return sess.run(self.init_state)
+
+    def _get_prefix(self, beam, order):
+        prefix = ""
+        for char in beam.char_ids[-order:]:
+            if char == self.char2id["<SPACE>"]:
+                prefix += " "
+            else:
+                prefix += self.id2char[char]
+        return prefix
+
+    def _get_char(self, char_id):
+        if char_id == self.char2id["<SPACE>"]:
+            return " "
+        elif char_id == self.char2id["<EOS>"]:
+            return "."
+
+        return self.id2char[char_id]
 
     def _pack_state(self, state):
         return (state[0].reshape(1,-1), state[1].reshape(1,-1))

@@ -33,9 +33,13 @@ try:
 except:
     raise Exception("Run preprocess.py first")
 
+# tokenizer
+tokenizer = text_encoder(args.unit, special_tokens, args.corpus_path)
+id_to_token = tokenizer.id_to_token
+args.vocab_size = tokenizer.get_vocab_size()
+
 # init model 
-args.vocab_size = len(char2id)
-las =  LAS(args, Listener, Speller, id2char)
+las =  LAS(args, Listener, Speller, id_to_token)
 
 # n-gram language model
 if args.apply_lm:
@@ -47,7 +51,7 @@ else:
     lm = None
 
 # build search decoder
-bs = BeamSearch(args, las, char2id, id2char, lm)
+bs = BeamSearch(args, las, char2id, id_to_token, lm)
 
 # create restore dict for decode scope
 var = {}
@@ -102,12 +106,13 @@ for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_chars):
         for i in range(2):
             xs = (np.expand_dims(audio[i*m:(i+1)*m], 0), np.expand_dims(m, 0))
             beam_states = bs.decode(sess, xs)
-            hyp += convert_idx_to_string(beam_states[-1].char_ids[1:], id2char)
+            hyp += convert_idx_to_string(beam_states[-1].char_ids[1:], id_to_token, args.unit)
     else:
         xs = (np.expand_dims(audio, 0), np.expand_dims(audiolen, 0))
         beam_states = bs.decode(sess, xs)
-        hyp = convert_idx_to_string(beam_states[-1].char_ids[1:], id2char)
-    ref = convert_idx_to_string(y, id2char)
+        hyp = convert_idx_to_string(beam_states[-1].char_ids[1:], id_to_token, args.unit)
+
+    ref = convert_idx_to_string(y, id_to_token, args.unit)
     res.append(wer(ref.split(" "), hyp.split(" ")))
     print("REF |", ref)
     print("HYP |", hyp)
