@@ -35,26 +35,50 @@ def data_preparation(libri_path):
 
     return texts, audio_path
 
-def speed_augmentation(filelist, target_folder, speed_list):
+def speed_augmentation(filelist, target_folder, speed):
     """Speed Augmentation
     
     Args:
-        path: Path to audio files.
+        file_list: Path to audio files.
         target_folder: Folder of augmented audios.
+        speed: Speed for augmentation.
     """
     audio_path = []
     aug_generator = sox.Transformer()
     print("Total audios:", len(filelist))
-    for speed in speed_list:
-        aug_generator.speed(speed)
-        target_folder_ = target_folder+"_"+str(speed)
-        if not os.path.exists(target_folder_):
-            os.makedirs(target_folder_)
-        for source_filename in tqdm(filelist):
-            file_id = source_filename.split("/")[-1]
-            save_filename = target_folder_+"/"+file_id.split(".")[0]+"_"+str(speed)+"."+file_id.split(".")[1] 
-            aug_generator.build(source_filename, save_filename)
-            audio_path.append(save_filename)
+    aug_generator.speed(speed)
+    target_folder_ = target_folder+"_"+str(speed)
+    if not os.path.exists(target_folder_):
+        os.makedirs(target_folder_)
+    for source_filename in tqdm(filelist):
+        file_id = source_filename.split("/")[-1]
+        save_filename = target_folder_+"/"+file_id.split(".")[0]+"_"+str(speed)+"."+file_id.split(".")[1] 
+        aug_generator.build(source_filename, save_filename)
+        audio_path.append(save_filename)
+
+    return audio_path
+
+def volume_augmentation(filelist, target_folder, vol_range):
+    """Volume Augmentation
+    
+    Args:
+        file_list: Path to audio files.
+        target_folder: Folder of augmented audios.
+        volume_range: Range of volumes for augmentation.
+    """
+    audio_path = []
+    aug_generator = sox.Transformer()
+    print("Total audios:", len(filelist))
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder)
+    for source_filename in tqdm(filelist):
+        volume = np.around(
+                np.random.uniform(vol_range[0],vol_range[1]), 2)
+        aug_generator.vol(volume)
+        file_id = source_filename.split("/")[-1]
+        save_filename = target_folder+"/"+file_id.split(".")[0]+"_"+str(volume)+"."+file_id.split(".")[1] 
+        aug_generator.build(source_filename, save_filename)
+        audio_path.append(save_filename)
     return audio_path
 
 def process_audios(audio_path,
@@ -227,7 +251,7 @@ def main():
     dev_libri_path = args.dev_data_path
     train_texts, train_audio_path = data_preparation(train_libri_path)
     dev_texts, dev_audio_path = data_preparation(dev_libri_path)
-
+    
     # save to corpus
     with open(args.corpus_path+"/train_gt.txt", 'w') as fout:
         fout.write("\n".join(train_texts))
@@ -274,20 +298,39 @@ def main():
                                             cmvn=True)
     np.save(args.feat_path+"/dev_feats.npy", dev_feats)
     np.save(args.feat_path+"/dev_featlen.npy", dev_featlen)
+    
 
     # augmentation
-    if args.augmentation:
-        aug_audio_path = speed_augmentation(filelist=train_audio_path,
-                                            target_folder="data/LibriSpeech/LibriSpeech_aug", 
-                                            speed_list=[1.1])
+    if args.augmentation:   
+        speed_list = [0.9, 1.1]
+        volume_list = [0.2, 2]
+        
+        # speed aug
+        for s in speed_list:
+            aug_audio_path = speed_augmentation(filelist=train_audio_path,
+                                                target_folder="data/LibriSpeech/LibriSpeech_speed_aug", 
+                                                speed=s)
+            aug_feats, aug_featlen = process_audios(aug_audio_path,
+                                                        frame_step=10, 
+                                                        frame_length=25,
+                                                        feat_dim=13,
+                                                        feat_type='mfcc',
+                                                        cmvn=True)
+            np.save(args.feat_path+"/aug_feats_{}_{}.npy".format("speed",s), aug_feats)    
+            np.save(args.feat_path+"/aug_featlen_{}_{}.npy".format("speed",s), aug_featlen)
+        
+        # volume aug
+        aug_audio_path = volume_augmentation(filelist=train_audio_path,
+                                            target_folder="data/LibriSpeech/LibriSpeech_volume_aug", 
+                                            vol_range=volume_list)
         aug_feats, aug_featlen = process_audios(aug_audio_path,
                                                     frame_step=10, 
                                                     frame_length=25,
                                                     feat_dim=13,
                                                     feat_type='mfcc',
                                                     cmvn=True)
-        np.save(args.feat_path+"/aug_feats1.2.npy", aug_feats)    
-        np.save(args.feat_path+"/aug_featlen1.2.npy", aug_featlen)
+        np.save(args.feat_path+"/aug_feats_{}.npy".format("vol"), aug_feats)    
+        np.save(args.feat_path+"/aug_featlen_{}.npy".format("vol"), aug_featlen)
 
 if __name__ == '__main__':
     main()
