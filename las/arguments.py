@@ -143,6 +143,10 @@ def parse_args():
                         type=str2bool, 
                         default=False, 
                         help='Apply language model.')
+    parser.add_argument('--lm_weight', 
+                        type=float, 
+                        default=0.5, 
+                        help='Weighting of recoring with language model.')
     # save dir
     parser.add_argument('--train_data_path',
                         type=str,
