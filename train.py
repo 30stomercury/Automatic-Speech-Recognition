@@ -48,9 +48,9 @@ try:
     if args.augmentation:
         for factor in [0.9, 1.1]:
             aug_feats = np.load(
-                    args.feat_path+"/aug_feats{}.npy".format(factor), allow_pickle=True)
+                    args.feat_path+"/aug_feats_speed_{}.npy".format(factor), allow_pickle=True)
             aug_featlen = np.load(
-                    args.feat_path+"/aug_featlen{}.npy".format(factor), allow_pickle=True)
+                    args.feat_path+"/aug_featlen_speed_{}.npy".format(factor), allow_pickle=True)
             train_feats = np.append(train_feats, aug_feats)
             train_featlen = np.append(train_featlen, aug_featlen)
             train_tokens = np.append(train_tokens, train_tokens[:len(aug_feats)])
