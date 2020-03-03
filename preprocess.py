@@ -78,6 +78,7 @@ def volume_augmentation(filelist, target_folder, vol_range):
         file_id = source_filename.split("/")[-1]
         save_filename = target_folder+"/"+file_id.split(".")[0]+"_"+str(volume)+"."+file_id.split(".")[1] 
         aug_generator.build(source_filename, save_filename)
+        aug_generator.clear_effects()
         audio_path.append(save_filename)
     return audio_path
 
@@ -298,13 +299,12 @@ def main():
                                             cmvn=True)
     np.save(args.feat_path+"/dev_feats.npy", dev_feats)
     np.save(args.feat_path+"/dev_featlen.npy", dev_featlen)
-    
 
     # augmentation
     if args.augmentation:   
         speed_list = [0.9, 1.1]
         volume_list = [0.2, 2]
-        
+
         # speed aug
         for s in speed_list:
             aug_audio_path = speed_augmentation(filelist=train_audio_path,
