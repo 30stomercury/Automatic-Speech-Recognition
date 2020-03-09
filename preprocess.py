@@ -100,7 +100,7 @@ def process_audios(audio_path,
     for p in tqdm(audio_path):
 
         try:
-            audio, fs = librosa.load(p)
+            audio, fs = librosa.load(p, None)
         except:
             print(p)
             pass
@@ -261,7 +261,7 @@ def main():
     print("Process train/dev features...")
     if not os.path.exists(args.feat_path):
         os.makedirs(args.feat_path)
-
+    
     # texts
     special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     tokenizer = text_encoder(args.unit, special_tokens, args.corpus_path)
@@ -289,7 +289,7 @@ def main():
                                                 cmvn=True)
     np.save(args.feat_path+"/train_feats.npy", train_feats)    
     np.save(args.feat_path+"/train_featlen.npy", train_featlen)
-
+    
     print("Process dev audios...")
     dev_feats, dev_featlen = process_audios(dev_audio_path,
                                             frame_step=10, 
@@ -299,16 +299,17 @@ def main():
                                             cmvn=True)
     np.save(args.feat_path+"/dev_feats.npy", dev_feats)
     np.save(args.feat_path+"/dev_featlen.npy", dev_featlen)
-
+    
     # augmentation
     if args.augmentation:   
-        speed_list = [0.9, 1.1]
-        volume_list = [0.2, 2]
+        folder = args.feat_path.split("/")[1]
+        speed_list = [1.1]
+        volume_list = [0.8, 1.5]
 
         # speed aug
         for s in speed_list:
             aug_audio_path = speed_augmentation(filelist=train_audio_path,
-                                                target_folder="data/LibriSpeech/LibriSpeech_speed_aug", 
+                                                target_folder="data/{}/LibriSpeech_speed_aug".format(folder), 
                                                 speed=s)
             aug_feats, aug_featlen = process_audios(aug_audio_path,
                                                         frame_step=10, 
@@ -321,7 +322,7 @@ def main():
         
         # volume aug
         aug_audio_path = volume_augmentation(filelist=train_audio_path,
-                                            target_folder="data/LibriSpeech/LibriSpeech_volume_aug", 
+                                            target_folder="data/{}/LibriSpeech_volume_aug".format(folder), 
                                             vol_range=volume_list)
         aug_feats, aug_featlen = process_audios(aug_audio_path,
                                                     frame_step=10, 
@@ -331,6 +332,6 @@ def main():
                                                     cmvn=True)
         np.save(args.feat_path+"/aug_feats_{}.npy".format("vol"), aug_feats)    
         np.save(args.feat_path+"/aug_featlen_{}.npy".format("vol"), aug_featlen)
-
+        
 if __name__ == '__main__':
     main()
