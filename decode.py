@@ -1,16 +1,16 @@
 from las.beam_search import BeamSearch
-from las.arguments import *
-from las.las import *
-from las.utils import *
+from utils.text import text_encoder
+from las.utils import convert_idx_to_string
+from las.arguments import parse_args
+from las.las import Listener, Speller, LAS
+from data_loader import batch_gen
 from las.language_model import *
-from data_loader import *
-from preprocess import *
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 import os
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 # arguments
 args = parse_args()
@@ -26,8 +26,8 @@ try:
     dev_featlen = np.load(args.feat_path+"/dev_featlen.npy", allow_pickle=True)
     dev_chars = np.load(args.feat_path+"/dev_chars.npy", allow_pickle=True)
     dev_charlen = np.load(args.feat_path+"/dev_charlen.npy", allow_pickle=True)
-    special_chars = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-    char2id, id2char = lookup_dicts(special_chars)
+    special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
+    char2id, id2char = lookup_dicts(special_tokens)
 
 # process features
 except:
@@ -70,7 +70,7 @@ for v in var_all:
 # restore
 saver = tf.train.Saver(var_list=var)
 ckpt = tf.train.latest_checkpoint(args.save_path)
-ckpt = "model/las_v11/las_E594"
+ckpt = "model/las_v11/las_E645"
 
 print("-----------ckpt: {}-----------".format(ckpt))
 

@@ -20,11 +20,11 @@ def parse_args():
                         help='Encoding unit for texts processing.')
     parser.add_argument('--sample_rate', 
                         type=int, 
-                        default=22050, 
+                        default=16000, 
                         help='Sample rate.')
     parser.add_argument('--feat_dim', 
                         type=int, 
-                        default=40, 
+                        default=13, 
                         help='The feature dimension.')
     parser.add_argument('--frame_length', 
                         type=int, 
@@ -36,12 +36,8 @@ def parse_args():
                         help='Frame step in ms.')
     parser.add_argument('--feat_type', 
                         type=str, 
-                        default='fbank', 
-                        help='Log-mel filter bank.')
-    parser.add_argument('--dither', 
-                        type=float, 
-                        default=0, 
-                        help='Dither for fbank.')
+                        default='mfcc', 
+                        help='mfcc')
     parser.add_argument('--cmvn', 
                         type=str2bool, 
                         default=True, 

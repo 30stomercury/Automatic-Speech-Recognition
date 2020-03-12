@@ -1,13 +1,12 @@
-from las.utils import *
-from las.arguments import *
-from las.las import *
-from data_loader import *
-from preprocess import *
 import os
 import sys
 import numpy as np
 import tensorflow as tf
-
+from utils.text import text_encoder
+from las.utils import convert_idx_to_string
+from las.arguments import parse_args
+from las.las import Listener, Speller, LAS
+from data_loader import batch_gen
 
 # arguments
 args = parse_args()
@@ -15,13 +14,6 @@ args = parse_args()
 # init session 
 gpu_options = tf.GPUOptions(allow_growth=True)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-
-
-# define data generator
-train_libri_path = args.train_data_path
-dev_libri_path = args.dev_data_path
-train_texts, train_audio_path = data_preparation(train_libri_path)
-dev_texts, dev_audio_path = data_preparation(dev_libri_path)
 
 # load from previous output
 try:
