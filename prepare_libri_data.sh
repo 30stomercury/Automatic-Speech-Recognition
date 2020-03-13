@@ -13,12 +13,14 @@ if [ $1 = "LibriSpeech-100" ]
 then
     echo "Downloading LibriSpeech-100"
     wget http://www.openslr.org/resources/12/train-clean-100.tar.gz
+    echo "Extracting..."
     tar -xvf train-clean-100.tar.gz
 
 elif [ $1 = "LibriSpeech-360" ]
 then
     echo "Downloading LibriSpeech-360"
     wget http://www.openslr.org/resources/12/train-clean-360.tar.gz
+    echo "Extracting..."
     tar -xvf train-clean-360.tar.gz
 
 else
