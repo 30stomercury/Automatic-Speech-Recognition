@@ -1,7 +1,6 @@
 # Automatic_Speech_Recognition
 
-### Prepare data
-#### Prepare libirspeech train/dev/test data
+### Prepare libirspeech train/dev/test data
 ```
 sh prepare_libri_data.sh LibriSpeech-100
 ```
@@ -10,7 +9,7 @@ or
 sh prepare_libri_data.sh LibriSpeech-360
 ```
 
-#### Prepare tedlium train/dev/test data
+### Prepare tedlium train/dev/test data
 ```
 sh prepare_ted_data.sh TED-LIUMv1
 ```
