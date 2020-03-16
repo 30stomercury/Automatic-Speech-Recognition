@@ -221,8 +221,7 @@ def main_libri(args):
     tokenizer = text_encoder(args.unit, special_tokens)
     
     path = [args.train_data_path, args.dev_data_path, args.test_data_path]
-    path = [args.dev_data_path, args.test_data_path]
-    for index, cat in enumerate(['dev', 'test']):
+    for index, cat in enumerate(['train', 'dev', 'test']):
         # define data generator
         libri_path = path[index]
         texts, audio_path = data_preparation(libri_path)
@@ -248,7 +247,7 @@ def main_libri(args):
         print("Process {} audios...".format(cat))
         feats, featlen = process_audios(audio_path, args)
         # save
-        save_feats(_sample_threshold, cat, args.feat_path, feats*20)
+        save_feats(_sample_threshold, cat, args.feat_path, feats)
         np.save(args.feat_path+"/{}_featlen.npy".format(cat), featlen)
         
         # augmentation
@@ -262,10 +261,10 @@ def main_libri(args):
                 aug_audio_path = speed_augmentation(filelist=audio_path,
                                                     target_folder="data/{}/LibriSpeech_speed_aug".format(folder), 
                                                     speed=s)
-                aug_feats, aug_featlen = process_audios(audio_path, args)
+                aug_feats, aug_featlen = process_audios(aug_audio_path, args)
                 # save
                 save_feats(_sample_threshold, "speed_"+str(s), args.feat_path, aug_feats)
-                np.save(args.feat_path+"/aug_featlen_{}_{}.npy".format("speed",s), aug_featlen)
+                np.save(args.feat_path+"/{}_{}_featlen.npy".format("speed",s), aug_featlen)
 
             """
             ## Currently comment out vol augmentation:

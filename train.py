@@ -1,5 +1,6 @@
 import os
 import sys
+from glob import glob
 import numpy as np
 import tensorflow as tf
 from utils.text import text_encoder
@@ -15,12 +16,19 @@ args = parse_args()
 gpu_options = tf.GPUOptions(allow_growth=True)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
+def load_feats(path, cat):
+    partitions = np.sort(glob(path+"/"+cat+"_feats*"))
+    feats = []
+    for p in partitions:
+        feats_ = np.load(p, allow_pickle=True)
+        feats = np.append(feats, feats_)   
+    return feats
+
 # load from previous output
 try:
     print("Load features...")
     # train
-    train_feats = np.load(
-        args.feat_path+"/train_feats.npy", allow_pickle=True)
+    train_feats = load_feats(args.feat_path, "train")
     train_featlen = np.load(
         args.feat_path+"/train_featlen.npy", allow_pickle=True)
     train_tokens = np.load(
@@ -39,10 +47,9 @@ try:
     # aug
     if args.augmentation:
         for factor in [0.9, 1.1]:
-            aug_feats = np.load(
-                    args.feat_path+"/aug_feats_speed_{}.npy".format(factor), allow_pickle=True)
+            aug_feats = load_path(args.feat_path, "speed_{}".format(factor))
             aug_featlen = np.load(
-                    args.feat_path+"/aug_featlen_speed_{}.npy".format(factor), allow_pickle=True)
+                    args.feat_path+"/speed_{}_featlen.npy".format(factor), allow_pickle=True)
             train_feats = np.append(train_feats, aug_feats)
             train_featlen = np.append(train_featlen, aug_featlen)
             train_tokens = np.append(train_tokens, train_tokens[:len(aug_feats)])
@@ -62,7 +69,7 @@ train_tokenlen = train_tokenlen[index]
 
 # tokenize tools
 special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-tokenizer = text_encoder(args.unit, special_tokens, args.corpus_path)
+tokenizer = text_encoder(args.unit, special_tokens)
 args.vocab_size = tokenizer.get_vocab_size()
 id_to_token = tokenizer.id_to_token
 
