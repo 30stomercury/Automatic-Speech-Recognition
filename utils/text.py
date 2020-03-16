@@ -22,12 +22,11 @@ def lookup_dicts(special_tokens):
 
 class text_encoder:
     "char tokenizarion and subword tokenization" 
-    def __init__(self, unit, special_tokens, corpus_path):
+    def __init__(self, unit, special_tokens):
         """
         Args:
             unit: unit used for encoding strings, char or subword.
             special_tokens: special charactors, <PAD>, <SOS>, <EOS>, <SPACE>
-            corpus_path: path of training corpus.
         """
         self.unit = unit
         self.special_tokens = special_tokens
@@ -40,7 +39,6 @@ class text_encoder:
 
         # utilize "tokenizers" library
         elif self.unit == "subword":
-            self.train_subword_tokenizer(corpus_path)
             self.encode = self._encode_subwords
             self.id_to_token = self._id_to_subword()
         else:
@@ -90,6 +88,9 @@ class text_encoder:
     def train_subword_tokenizer(self, path):
         """Train subword tokenizers for subword encoding
         ref: https://github.com/huggingface/tokenizers
+
+        Args:
+            corpus_path: path of training corpus.
         """
         try:
             tokenizer = CharBPETokenizer(vocab_file=path+"bpe-vocab.json", merges_file=path+"bpe-merges.txt")

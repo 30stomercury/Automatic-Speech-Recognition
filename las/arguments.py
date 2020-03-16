@@ -14,6 +14,10 @@ def parse_args():
         description='A tensorflow implementation of end-to-end speech recognition system:'
                     'Listen, Attend and Spell (LAS)')    
     # feature arguments
+    parser.add_argument('--dataset', 
+                        type=str, 
+                        default='LibriSpeech', 
+                        help='Dataset.')
     parser.add_argument('--unit', 
                         type=str, 
                         default='char', 
@@ -151,6 +155,10 @@ def parse_args():
     parser.add_argument('--dev_data_path',
                         type=str,
                         default='./data/LibriSpeech/LibriSpeech_dev/dev-clean',
+                        help='')
+    parser.add_argument('--test_data_path',
+                        type=str,
+                        default='./data/LibriSpeech/LibriSpeech_test/test-clean',
                         help='')
     parser.add_argument('--feat_path', 
                         type=str, 
