@@ -268,6 +268,7 @@ def main_libri(args):
                 np.save(args.feat_path+"/aug_featlen_{}_{}.npy".format("speed",s), aug_featlen)
 
             """
+            ## Currently comment out vol augmentation:
             # volume aug
             aug_audio_path = volume_augmentation(filelist=train_audio_path,
                                                 target_folder="data/{}/LibriSpeech_volume_aug".format(folder), 
