@@ -6,7 +6,6 @@ from glob import glob
 import string
 import os
 from tqdm import tqdm
-from tokenizers import CharBPETokenizer
 from las.arguments import parse_args
 from utils.text import text_encoder
 from utils.augmentation import speed_augmentation, volume_augmentation
@@ -163,15 +162,7 @@ def process_ted(category, args, tokenizer):
             fout.write("\n".join(train_texts))
         tokenizer.train_subword_tokenizer(args.corpus_path)
 
-    feats = []
-    featlen = []
-
-    # setting                                                                                                                                                                                               
-    frame_step = args.frame_step
-    frame_length = args.frame_length
-    feat_dim = args.feat_dim
-    feat_type = args.feat_type
-    cmvn = args.cmvn
+    audio_path = []
      
     # save results
     for i, (wave_file, offset, dur) in enumerate(zip(wave_files, offsets, durs)):
@@ -185,27 +176,23 @@ def process_ted(category, args, tokenizer):
             else:
                 raise RuntimeError("Missing sph file from TedLium corpus at %s"%(sph_file))
 
+        # load
         audio, fs = librosa.load(wave_file, mono=True, sr=None, offset=offset, duration=dur)
-        #librosa.output.write_wav('test{}.wav'.format(i), audio, fs)
+
+        # for debug and augmentation
+        train_wav_path = 'data/TEDLIUM_release1/train_wav'
+        file_path = train_wav_path+'/{}_{}.wav'.format(wave_file.split("/")[-1][:-8], i)
+
+        if not os.path.exists(train_wav_path):
+            os.makedirs(train_wav_path)
+        librosa.output.write_wav(file_path, audio, fs)
+        audio_path.append(file_path)
         
-        if feat_type == "mfcc":
-            # get mfcc feature
-            mfcc = speechpy.feature.mfcc(audio, 
-                                         fs, 
-                                         frame_length=frame_length/1000, 
-                                         frame_stride=frame_step/1000, 
-                                         num_cepstral=feat_dim)
-            if cmvn:
-                mfcc = speechpy.processing.cmvn(mfcc, True)
-            mfcc_39 = speechpy.feature.extract_derivative_feature(mfcc)
-            mfcc_39 = mfcc_39.reshape(-1, 13*3).astype(np.float32)
-            
-            # save result ( exclude small mfcc data to prevent ctc loss )
-            if len(tokens[i]) < mfcc_39.shape[0]:
-                feats.append(mfcc_39)
-                featlen.append(len(feats[-1]))
-    
-    return feats, featlen, tokens, tokenlen
+    # process audio        
+    feats, featlen = process_audios(audio_path, args)
+
+
+    return feats, featlen, tokens, tokenlen, audio_path
         
 def main_ted(args):
 
@@ -217,13 +204,31 @@ def main_ted(args):
     tokenizer = text_encoder(args.unit, special_tokens)
 
     for cat in ['train', 'dev', 'test']:
-        feats, featlen, tokens, tokenlen = process_ted(cat, args, tokenizer)
+        
+        print("Process {} data...".format(cat))
+        feats, featlen, tokens, tokenlen, audio_path = process_ted(cat, args, tokenizer)
+
         # save feats
         save_feats(_sample_threshold, cat, args.feat_path, feats)
         np.save(args.feat_path+"/{}_featlen.npy".format(cat), featlen)
+
         # save text features
         np.save(args.feat_path+"/{}_{}s.npy".format(cat, args.unit), tokens)
         np.save(args.feat_path+"/{}_{}len.npy".format(cat, args.unit), tokenlen)
+
+        # augmentation
+        if args.augmentation and cat == "train":
+
+            speed_list = [0.9, 1.1]
+            print("Process aug data...") 
+            # speed aug
+            for s in speed_list:
+                aug_audio_path = speed_augmentation(filelist=audio_path,
+                                                    target_folder="data/TEDLIUM_release1/ted_speed_aug", 
+                                                    speed=s)
+                aug_feats, aug_featlen = process_audios(aug_audio_path, args) 
+                save_feats(_sample_threshold, "speed_{}".format(s), args.feat_path, aug_feats)
+                np.save(args.feat_path+"/speed_{}_featlen.npy".format(s), aug_featlen)
 
 def main_libri(args):
 
