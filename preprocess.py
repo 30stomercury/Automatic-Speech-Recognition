@@ -104,7 +104,7 @@ def process_audios(audio_path, args):
 
         featlen.append(len(feats[-1]))
 
-    return feats, np.array(featlen).astype(np.int32)
+    return feats, featlen
 
 def process_texts(texts, tokenizer):
     """
@@ -265,10 +265,10 @@ def main_libri(args):
                 feats, featlen_ = process_audios(audio_path[i*n:(i+1)*n], args)
                 featlen += featlen_
                 # save
-                np.save(path+"/{}_feats_{}.npy".format(cat, i), feats)
+                np.save(args.feat_path+"/{}_feats_{}.npy".format(cat, i), feats)
         else:
             feats, featlen = process_audios(audio_path, args)
-            np.save(path+"/{}_feats.npy".format(cat ), feats)
+            np.save(args.feat_path+"/{}_feats.npy".format(cat ), feats)
 
         np.save(args.feat_path+"/{}_featlen.npy".format(cat), featlen)
         
@@ -291,8 +291,11 @@ def main_libri(args):
                     for i in range(3):
                         aug_feats, aug_featlen_ = process_audios(aug_audio_path[i*n:(i+1)*n], args)
                         aug_featlen += aug_featlen_
+                        # save
+                        np.save(args.feat_path+"/speed_{}_feats_{}.npy".format(s, i), feats)
                 else:
                     aug_feats, aug_featlen = process_audios(aug_audio_path, args)
+                    np.save(args.feat_path+"/speed_{}_feats.npy".format(s), feats)
 
                 np.save(args.feat_path+"/{}_{}_featlen.npy".format("speed",s), aug_featlen)
 
