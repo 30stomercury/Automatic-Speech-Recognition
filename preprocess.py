@@ -29,8 +29,6 @@ def save_feats(threshold, cat, path, feats):
             np.save(path+"/{}_feats_{}.npy".format(cat, i), feats[i*n:(i+1)*n])
     else:
         np.save(path+"/{}_feats.npy".format(cat), feats)
-    
-
 
 def data_preparation(libri_path):
     """Prepare texts and its corresponding audio file path
@@ -83,7 +81,11 @@ def process_audios(audio_path, args):
 
         if feat_type == 'mfcc':
             assert feat_dim == 13, "13 is commonly used"
-            mfcc = speechpy.feature.mfcc(audio, fs, frame_length=frame_length/1000, frame_stride=frame_step/1000, num_cepstral=feat_dim)
+            mfcc = speechpy.feature.mfcc(audio, 
+                                         fs, 
+                                         frame_length=frame_length/1000, 
+                                         frame_stride=frame_step/1000, 
+                                         num_cepstral=feat_dim)
             
             if cmvn:
                 mfcc = speechpy.processing.cmvn(mfcc, True)
@@ -91,7 +93,11 @@ def process_audios(audio_path, args):
             feats.append(mfcc_39.reshape(-1, feat_dim*3).astype(np.float32))
 
         elif feat_type == 'fbank':
-            fbank = speechpy.feature.lmfe(audio, fs, frame_length=frame_length/1000, frame_stride=frame_step/1000, num_filters=feat_dim)
+            fbank = speechpy.feature.lmfe(audio, 
+                                          fs, 
+                                          frame_length=frame_length/1000, 
+                                          frame_stride=frame_step/1000, 
+                                          num_filters=feat_dim)
             if cmvn:
                 fbank = speechpy.processing.cmvn(fbank, True)
             feats.append(fbank.reshape(-1, feat_dim).astype(np.float32))
@@ -131,7 +137,8 @@ def process_ted(category, args, tokenizer):
 
             # label index
             sentence = ' '.join(field[6:-1]).upper()
-            sentence = sentence.translate(str.maketrans('', '', string.punctuation+'1234567890'))
+            sentence = sentence.translate(
+                            str.maketrans('', '', string.punctuation+'1234567890'))
             sentence_converted = tokenizer.encode(sentence, with_eos=True)
 
             if len(sentence_converted) < 2:
@@ -183,7 +190,11 @@ def process_ted(category, args, tokenizer):
         
         if feat_type == "mfcc":
             # get mfcc feature
-            mfcc = speechpy.feature.mfcc(audio, fs, frame_length=frame_length/1000, frame_stride=frame_step/1000, num_cepstral=feat_dim)
+            mfcc = speechpy.feature.mfcc(audio, 
+                                         fs, 
+                                         frame_length=frame_length/1000, 
+                                         frame_stride=frame_step/1000, 
+                                         num_cepstral=feat_dim)
             if cmvn:
                 mfcc = speechpy.processing.cmvn(mfcc, True)
             mfcc_39 = speechpy.feature.extract_derivative_feature(mfcc)
@@ -193,7 +204,7 @@ def process_ted(category, args, tokenizer):
             if len(tokens[i]) < mfcc_39.shape[0]:
                 feats.append(mfcc_39)
                 featlen.append(len(feats[-1]))
-
+    
     return feats, featlen, tokens, tokenlen
         
 def main_ted(args):
@@ -222,7 +233,7 @@ def main_libri(args):
     
     path = [args.train_data_path, args.dev_data_path, args.test_data_path]
     for index, cat in enumerate(['train', 'dev', 'test']):
-        # define data generator
+        # prepare data
         libri_path = path[index]
         texts, audio_path = data_preparation(libri_path)
 
@@ -230,24 +241,35 @@ def main_libri(args):
             # save to corpus
             with open(args.corpus_path+"/train_gt.txt", 'w') as fout:
                 fout.write("\n".join(texts))
+            # train BPE
             tokenizer.train_subword_tokenizer(args.corpus_path)
 
         print("Process {} texts...".format(cat))
         if not os.path.exists(args.feat_path):
             os.makedirs(args.feat_path)
 
-        tokens, tokenlen = process_texts(
-                                        texts, 
-                                        tokenizer)
+        tokens, tokenlen = process_texts(texts, tokenizer)
+
         # save text features
         np.save(args.feat_path+"/{}_{}s.npy".format(cat, args.unit), tokens)
         np.save(args.feat_path+"/{}_{}len.npy".format(cat, args.unit), tokenlen)
 
         # audios
-        print("Process {} audios...".format(cat))
-        feats, featlen = process_audios(audio_path, args)
-        # save
-        save_feats(_sample_threshold, cat, args.feat_path, feats)
+        # When number of feats > threshold, divide feature 
+        # into three parts to avoid memory error.
+        if len(audio_path) > _sample_threshold:
+            featlen = []
+            n = len(audio_path) // 3 + 1
+            print("Process {} audios...".format(cat))
+            for i in range(3):
+                feats, featlen_ = process_audios(audio_path[i*n:(i+1)*n], args)
+                featlen += featlen_
+                # save
+                np.save(path+"/{}_feats_{}.npy".format(cat, i), feats)
+        else:
+            feats, featlen = process_audios(audio_path, args)
+            np.save(path+"/{}_feats.npy".format(cat ), feats)
+
         np.save(args.feat_path+"/{}_featlen.npy".format(cat), featlen)
         
         # augmentation
@@ -261,9 +283,17 @@ def main_libri(args):
                 aug_audio_path = speed_augmentation(filelist=audio_path,
                                                     target_folder="data/{}/LibriSpeech_speed_aug".format(folder), 
                                                     speed=s)
-                aug_feats, aug_featlen = process_audios(aug_audio_path, args)
-                # save
-                save_feats(_sample_threshold, "speed_"+str(s), args.feat_path, aug_feats)
+                # When number of feats > threshold, divide feature 
+                # into three parts to avoid memory error.
+                if len(aug_audio_path) > _sample_threshold:
+                    aug_featlen = []
+                    n = len(aug_audio_path) // 3 + 1
+                    for i in range(3):
+                        aug_feats, aug_featlen_ = process_audios(aug_audio_path[i*n:(i+1)*n], args)
+                        aug_featlen += aug_featlen_
+                else:
+                    aug_feats, aug_featlen = process_audios(aug_audio_path, args)
+
                 np.save(args.feat_path+"/{}_{}_featlen.npy".format("speed",s), aug_featlen)
 
             """
