@@ -52,6 +52,7 @@ for set in dev test train; do
                    -e 's/{SMACK}//g' \
                    -e 's/{NOISE}//g' \
                    -e 's/{BREATH}//g' \
+                   -e "s/ '//g" \
                    -e 's/{COUGH}//g' > data/TEDLIUM_release$ver/$set/stm/clean.stm
     }
 done

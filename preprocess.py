@@ -165,7 +165,7 @@ def process_ted(category, args, tokenizer):
     feat_dim = args.feat_dim
     feat_type = args.feat_type
     cmvn = args.cmvn
-
+     
     # save results
     for i, (wave_file, offset, dur) in enumerate(zip(wave_files, offsets, durs)):
         fn = "%s-%.2f" % (wave_file.split('/')[-1], offset)
@@ -205,7 +205,7 @@ def main_ted(args):
     special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     tokenizer = text_encoder(args.unit, special_tokens)
 
-    for cat in ['dev', 'test']:
+    for cat in ['train', 'dev', 'test']:
         feats, featlen, tokens, tokenlen = process_ted(cat, args, tokenizer)
         # save feats
         save_feats(_sample_threshold, cat, args.feat_path, feats)
