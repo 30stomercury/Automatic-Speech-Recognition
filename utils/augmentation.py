@@ -21,7 +21,10 @@ def speed_augmentation(filelist, target_folder, speed):
     for source_filename in tqdm(filelist):
         file_id = source_filename.split("/")[-1]
         save_filename = target_folder_+"/"+file_id.split(".")[0]+"_"+str(speed)+"."+file_id.split(".")[1] 
-        aug_generator.build(source_filename, save_filename)
+        if os.path.isfile(save_filename):
+            print("File exist!")
+        else:
+            aug_generator.build(source_filename, save_filename)
         audio_path.append(save_filename)
 
     return audio_path
