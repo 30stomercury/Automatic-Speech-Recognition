@@ -7,6 +7,7 @@ from glob import glob
 import string
 import os
 from tqdm import tqdm
+
 from las.arguments import parse_args
 from utils.text import text_encoder
 from utils.augmentation import speed_augmentation, volume_augmentation
@@ -142,11 +143,11 @@ def process_ted(cat, args, tokenizer):
             offsets.append(start)
             durs.append(end - start)
 
-    # save to corpus
+    # save to log
     if cat == "train" and args.unit == "subword":
-        with open(args.corpus_path+"/train_gt.txt", 'w') as fout:
+        with open(args.log_path+"/train_gt.txt", 'w') as fout:
             fout.write("\n".join(train_texts))
-        tokenizer.train_subword_tokenizer(args.corpus_path)
+        tokenizer.train_subword_tokenizer(args.log_path)
 
     audio_path = []
      
@@ -263,11 +264,11 @@ def main_libri(args):
         texts, audio_path = data_preparation(libri_path)
 
         if cat == 'train' and args.unit == 'subword':
-            # save to corpus
-            with open(args.corpus_path+"/train_gt.txt", 'w') as fout:
+            # save to log
+            with open(args.log_path+"/train_gt.txt", 'w') as fout:
                 fout.write("\n".join(texts))
             # train BPE
-            tokenizer.train_subword_tokenizer(args.corpus_path)
+            tokenizer.train_subword_tokenizer(args.log_path)
 
         print("Process {} texts...".format(cat))
         if not os.path.exists(args.feat_path):

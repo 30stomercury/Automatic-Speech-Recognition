@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument('--dataset', 
                         type=str, 
                         default='LibriSpeech', 
-                        help='Dataset.')
+                        help='Dataset: LibriSpeech or TEDLIUM.')
     parser.add_argument('--unit', 
                         type=str, 
                         default='char', 
@@ -51,6 +51,11 @@ def parse_args():
                         default=True, 
                         help='Apply data augmentation or not.')
     # training arguments
+    parser.add_argument('--verbose', 
+                        '-vb',
+                        type=int, 
+                        default=0, 
+                        help='Verbosity.')
     parser.add_argument('--bucketing', 
                         type=str2bool, 
                         default=True, 
@@ -76,7 +81,7 @@ def parse_args():
                         type=int, 
                         default=10, 
                         help='The number of training epochs.')
-    parser.add_argument('--restore', 
+    parser.add_argument('--restore_epoch', 
                         type=int, 
                         default=-1, 
                         help='The epoch you want to restore.')
@@ -164,10 +169,10 @@ def parse_args():
                         type=str, 
                         default='./data/LibriSpeech/features', 
                         help='Path to save features.')
-    parser.add_argument('--corpus_path',
+    parser.add_argument('--log_path',
                         type=str,
-                        default='./corpus',
-                        help='Save cleaned texts.')
+                        default='./log',
+                        help='Save log file..')
     parser.add_argument('--save_path',
                         type=str,
                         default='./model/las',

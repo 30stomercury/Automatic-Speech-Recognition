@@ -1,4 +1,6 @@
+
 import tensorflow as tf
+import numpy as np
 
 def mask(original_len, padded_len):
     """Creating mask for sequences with different lengths in a batch.
@@ -175,3 +177,18 @@ def convert_idx_to_string(inputs, id_to_token, unit="char"):
         # replace the suffix </w> with " "
         sent = sent.replace("</w>", " ") 
     return " ".join(sent.split())
+
+def wer(s1,s2):
+
+    d = np.zeros([len(s1)+1,len(s2)+1])
+    d[:,0] = np.arange(len(s1)+1)
+    d[0,:] = np.arange(len(s2)+1)
+
+    for j in range(1,len(s2)+1):
+        for i in range(1,len(s1)+1):
+            if s1[i-1] == s2[j-1]:
+                d[i,j] = d[i-1,j-1]
+            else:
+                d[i,j] = min(d[i-1,j]+1, d[i,j-1]+1, d[i-1,j-1]+1)
+
+    return d[-1,-1]/len(s1)

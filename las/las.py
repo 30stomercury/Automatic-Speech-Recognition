@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-
 from las.utils import *
 
 class Listener:

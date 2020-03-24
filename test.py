@@ -1,47 +1,47 @@
+# supress future  warnings
+import warnings
+warnings.filterwarnings('ignore',category=FutureWarning)
+
+# supress deprecation
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
 import os
 import sys
 import logging
 import json
 from tqdm import tqdm
-
-# remove warnings
-import warnings
-warnings.filterwarnings('ignore',category=FutureWarning)
-from tensorflow.python.util import deprecation
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-
 import numpy as np
 import tensorflow as tf
-
 from las.utils import convert_idx_to_string, wer
 from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
 from data_loader import batch_gen
 from utils.text import text_encoder
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'  # set your device id
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 # arguments
 args = parse_args()
 
 
-
+# set logging
 logging.basicConfig(stream=sys.stdout,
                     format='%(asctime)s %(levelname)s:%(message)s', 
                     level=logging.INFO,
                     datefmt='%I:%M:%S')
 
-
 print('=' * 60 + '\n')
 logging.info('Parameters are:\n%s\n', json.dumps(vars(args), sort_keys=False, indent=4))
-print('=' * 60 + '\n')
+print('=' * 60 )
 
 
 # init session 
 gpu_options = tf.GPUOptions(allow_growth=True)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-print('=' * 60)
 
 # load from previous output
 try:
@@ -78,8 +78,8 @@ dev_logits, y_hat = las.inference(dev_xs)
 saver = tf.train.Saver(max_to_keep=100)
 ckpt = tf.train.latest_checkpoint(args.save_path)
 
-if args.restore != -1:
-    ckpt = args.save_path+"/las_E{}".format(args.restore)
+if args.restore_epoch != -1:
+    ckpt = args.save_path+"/las_E{}".format(args.restore_epoch)
 
 saver.restore(sess, ckpt)
 
@@ -110,10 +110,10 @@ for i in range(len(output_id)):
     texts_pred.append(hyp_)
     texts_gt.append(gt_)
 
-with open(args.corpus_path+"/test_pred.txt", 'w') as fout:
+with open(args.log_path+"/test_pred.txt", 'w') as fout:
     fout.write("\n".join(texts_pred))
 
-with open(args.corpus_path+"/test_gt.txt", 'w') as fout:
+with open(args.log_path+"/test_gt.txt", 'w') as fout:
     fout.write("\n".join(texts_gt))
 
 # evaluate WER

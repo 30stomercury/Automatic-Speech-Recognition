@@ -1,14 +1,16 @@
+# supress future warning
+import warnings
+warnings.filterwarnings('ignore',category=FutureWarning)
+
+# supress deprecation
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
 import os
 import sys
 import logging
 import json
 from glob import glob
-# remove warnings
-import warnings
-warnings.filterwarnings('ignore',category=FutureWarning)
-from tensorflow.python.util import deprecation
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-
 import joblib
 import numpy as np
 import tensorflow as tf
@@ -18,10 +20,13 @@ from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
 from data_loader import batch_gen
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '3' # set your device id
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 # arguments
 args = parse_args()
 
-
+# set log
 logging.basicConfig(stream=sys.stdout,
                     format='%(asctime)s %(levelname)s:%(message)s', 
                     level=logging.INFO,
@@ -69,7 +74,7 @@ try:
 except:
     raise Exception("Run preprocess.py first")
 
-# Clip text length to predefined decoding steps
+# Limit text length to predefined decoding steps
 # train
 index = train_tokenlen < args.maxlen
 train_feats = train_feats[index]
@@ -100,14 +105,13 @@ train_iter, num_train_batches = batch_gen(
 train_xs, train_ys = train_iter.get_next()
 
 # build train, inference graph 
-logging.info("Build train, inference graph (please wait)...")
+logging.info("Build train graph (please wait)...")
 loss, train_op, global_step, train_logits, alphas, train_summary = las.train(train_xs, train_ys)
 
 # saver
 if not os.path.exists(args.save_path):
     os.makedirs(args.save_path)
-if not os.path.exists(args.corpus_path):
-    os.makedirs(args.corpus_path)
+
 saver = tf.train.Saver(max_to_keep=100)
 
 if args.restore > 0:
@@ -154,7 +158,7 @@ for step in range(training_steps):
     if gs and gs % num_train_batches == 0:
         ave_loss = np.mean(loss_)
         e_ =  gs // num_train_batches
-        logging.info('=' * 19 + ' Epoch %d, Step %d/, Ave loss %d' + '=' * 19 + '\n', e_, gs, args.n_save)
+        logging.info('=' * 19 + ' Epoch %d, Step %d, Ave loss %d' + '=' * 19 + '\n', e_, gs, ave_loss)
         saver.save(sess, args.save_path+"/las_E{}".format(e_))      
         loss_ = []  
 

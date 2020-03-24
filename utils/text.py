@@ -35,7 +35,8 @@ class text_encoder:
         if self.unit == "char":
             self.char2id, self.id2char = lookup_dicts(special_tokens)
             self.encode = self._encode_chars
-            self.id_to_token = self._id_to_char()
+            self.id_to_token = self.id2char
+            self.token_to_id = self.char2id
 
         # utilize "tokenizers" library
         elif self.unit == "subword":
@@ -76,9 +77,6 @@ class text_encoder:
             tokens += self.subword_tokenizer.encode("<EOS>").ids
         return tokens
 
-    def _id_to_char(self):
-        return self.id2char
-
     def _id_to_subword(self):
         id2subword = {}
         for i in range(self.get_vocab_size()):
@@ -90,7 +88,7 @@ class text_encoder:
         ref: https://github.com/huggingface/tokenizers
 
         Args:
-            corpus_path: path of training corpus.
+            path: path of training corpus.
         """
         try:
             tokenizer = CharBPETokenizer(vocab_file=path+"bpe-vocab.json", merges_file=path+"bpe-merges.txt")

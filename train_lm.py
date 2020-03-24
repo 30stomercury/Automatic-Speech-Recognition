@@ -1,5 +1,5 @@
 import os
-#os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 import argparse
@@ -13,7 +13,6 @@ import sys
 import numpy as np
 import string
 from lang.char_rnn_model import *
-#from char_rnn_model import *
 from string import punctuation
 from six import iteritems
 
@@ -31,7 +30,7 @@ def main():
                         help='the encoding of the data file.')
 
     # Parameters for saving models.
-    parser.add_argument('--output_dir', type=str, default='output',
+    parser.add_argument('--output_dir', type=str, default='lang/output',
                         help=('directory to store final and'
                               ' intermediate results and models.'))
     parser.add_argument('--n_save', type=int, default=1,
@@ -121,9 +120,9 @@ def main():
     args = parser.parse_args()
 
     # Specifying location to store model, best model and tensorboard log.
-    args.save_model = os.path.join(args.output_dir, 'save_model/model')
-    args.save_best_model = os.path.join(args.output_dir, 'best_model/model')
-    args.tb_log_dir = os.path.join(args.output_dir, 'tensorboard_log/')
+    args.save_model = os.path.join(args.output_dir, 'lang/save_model/model')
+    args.save_best_model = os.path.join(args.output_dir, 'lang/best_model/model')
+    args.tb_log_dir = os.path.join(args.output_dir, 'lang/tensorboard_log/')
     args.vocab_file = ''
 
     # Create necessary directories.
