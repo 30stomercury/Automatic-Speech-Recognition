@@ -1,6 +1,15 @@
 import os
 import sys
+import logging
+import json
 from glob import glob
+# remove warnings
+import warnings
+warnings.filterwarnings('ignore',category=FutureWarning)
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
+import joblib
 import numpy as np
 import tensorflow as tf
 from utils.text import text_encoder
@@ -12,6 +21,16 @@ from data_loader import batch_gen
 # arguments
 args = parse_args()
 
+
+logging.basicConfig(stream=sys.stdout,
+                    format='%(asctime)s %(levelname)s:%(message)s', 
+                    level=logging.INFO,
+                    datefmt='%I:%M:%S')
+
+print('=' * 60 + '\n')
+logging.info('Parameters are:\n%s\n', json.dumps(vars(args), sort_keys=False, indent=4))
+print('=' * 60 + '\n')
+
 # init session 
 gpu_options = tf.GPUOptions(allow_growth=True)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
@@ -20,7 +39,7 @@ def load_feats(path, cat):
     partitions = np.sort(glob(path+"/"+cat+"_feats*"))
     feats = []
     for p in partitions:
-        feats_ = np.load(p, allow_pickle=True)
+        feats_ = joblib.load(p)
         feats = np.append(feats, feats_)   
     return feats
 
@@ -35,15 +54,6 @@ try:
         args.feat_path+"/train_{}s.npy".format(args.unit), allow_pickle=True)
     train_tokenlen = np.load(
         args.feat_path+"/train_{}len.npy".format(args.unit), allow_pickle=True)
-    # dev
-    dev_feats = np.load(
-        args.feat_path+"/dev_feats.npy", allow_pickle=True)
-    dev_featlen = np.load(
-        args.feat_path+"/dev_featlen.npy", allow_pickle=True)
-    dev_tokens = np.load(
-        args.feat_path+"/dev_{}s.npy".format(args.unit), allow_pickle=True)
-    dev_tokenlen = np.load(
-        args.feat_path+"/dev_{}len.npy".format(args.unit), allow_pickle=True)
     # aug
     if args.augmentation:
         for factor in [0.9, 1.1]:
@@ -77,7 +87,7 @@ id_to_token = tokenizer.id_to_token
 las =  LAS(args, Listener, Speller, id_to_token)
 
 # build batch iterator
-print("Build batch iterator...")
+logging.info("Build batch iterator...")
 train_iter, num_train_batches = batch_gen(
                                     train_feats, 
                                     train_tokens, 
@@ -87,22 +97,11 @@ train_iter, num_train_batches = batch_gen(
                                     args.feat_dim, 
                                     args.bucketing, 
                                     is_training=True)
-dev_iter, num_dev_batches = batch_gen(
-                                    dev_feats, 
-                                    dev_tokens, 
-                                    dev_featlen, 
-                                    dev_tokenlen, 
-                                    args.batch_size, 
-                                    args.feat_dim, 
-                                    True, 
-                                    is_training=False)
 train_xs, train_ys = train_iter.get_next()
-dev_xs, dev_ys = dev_iter.get_next()
 
 # build train, inference graph 
-print("Build train, inference graph (please wait)...")
+logging.info("Build train, inference graph (please wait)...")
 loss, train_op, global_step, train_logits, alphas, train_summary = las.train(train_xs, train_ys)
-dev_logits, y_hat = las.inference(dev_xs)
 
 # saver
 if not os.path.exists(args.save_path):
@@ -123,37 +122,39 @@ else:
 
 # init iterator and graph
 sess.run(train_iter.initializer)
-sess.run(dev_iter.initializer)
 
 # summary
 summary_writer = tf.summary.FileWriter(args.summary_path, sess.graph)
 
 # info
-print("INFO: Training command:"," ".join(sys.argv))
-print("INFO: Total weights:", 
-            np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
+print('=' * 60 + '\n')
+logging.info("Training command: python3 {}".format(" ".join(sys.argv)))
+print('=' * 60 + '\n')
+logging.info("Total weights: {}".format(
+            np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
 
 # training
 training_steps = num_train_batches * args.epoch
-print("INFO: Total num train batches:", num_train_batches)
-print("Training...")
+logging.info("Total num train batches:", num_train_batches)
+logging.info("Training...")
 loss_ = []
+
 for step in range(training_steps):
     batch_loss, gs, _, summary_, logits, train_gt = sess.run(
                         [loss, global_step, train_op, train_summary, train_logits, train_ys])
 
-    print("HYP: {}\nREF: {}".format(
-        convert_idx_to_string(np.argmax(logits, -1)[0], id_to_token, args.unit), 
-        convert_idx_to_string(train_gt[0][0], id_to_token, args.unit)))
+    if args.verbose > 0:
+        logging.info("HYP: {}\nREF: {}".format(
+            convert_idx_to_string(np.argmax(logits, -1)[0], id_to_token, args.unit), 
+            convert_idx_to_string(train_gt[0][0], id_to_token, args.unit)))
 
-    print("INFO: num_step: {}, loss: {}".format(gs, batch_loss))
+    logging.info("Step: {}, Loss: {}".format(gs, batch_loss))
     summary_writer.add_summary(summary_, gs)
     loss_.append(batch_loss)
     if gs and gs % num_train_batches == 0:
         ave_loss = np.mean(loss_)
         e_ =  gs // num_train_batches
-        print("INFO: num epoch: {}, num_step: {}, ave loss: {}, wer: {}".format(
-                                                e_, gs, ave_loss, 0))
+        logging.info('=' * 19 + ' Epoch %d, Step %d/, Ave loss %d' + '=' * 19 + '\n', e_, gs, args.n_save)
         saver.save(sess, args.save_path+"/las_E{}".format(e_))      
         loss_ = []  
 
