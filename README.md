@@ -145,7 +145,11 @@ tensorboard --logdir ./summary
 ```
 
 ## Results
-
+Results trained on LibriSpeech-360:
+|       |  dev  |  test  | 
+|:-----:|:-----:|:-----:|
+| beam_size | 10 | 10 |
+| wer |   |   |   |
 
 ## TODO
 - [ ] Evaluate performance with subword unit: Subword las training, subword-based RNNLM. 
