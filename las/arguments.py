@@ -28,7 +28,7 @@ def parse_args():
                         help='Sample rate.')
     parser.add_argument('--feat_dim', 
                         type=int, 
-                        default=13, 
+                        default=39, 
                         help='The feature dimension.')
     parser.add_argument('--frame_length', 
                         type=int, 
@@ -50,6 +50,10 @@ def parse_args():
                         type=str2bool, 
                         default=True, 
                         help='Apply data augmentation or not.')
+    parser.add_argument('--split', 
+                        type=str, 
+                        default='dev', 
+                        help='Split used for evaluation.')
     # training arguments
     parser.add_argument('--verbose', 
                         '-vb',
@@ -89,6 +93,14 @@ def parse_args():
                         type=str2bool, 
                         default=True, 
                         help='Apply label smoothing.')
+    parser.add_argument('--ctc', 
+                        type=str2bool, 
+                        default=False, 
+                        help='Apply ctc.')
+    parser.add_argument('--ctc_weight', 
+                        type=float, 
+                        default=0.2, 
+                        help='Weighting of ctc.')
     # hparams of Listener
     parser.add_argument('--enc_units',
                         type=int,
@@ -123,23 +135,15 @@ def parse_args():
                         type=int,
                         default=400,
                         help='Max length of char sequences in training.')
-    parser.add_argument('--convert_rate',
-                        type=float,
-                        default=0.166,
-                        help='Convert the length of audio estimate the length of chars.')
     parser.add_argument('--teacher_forcing_rate',
                         type=float,
                         default=0.9,
                         help='Apply teacher forcing in decoder while training with constant sample rate.')
-    parser.add_argument('--ctc', 
-                        type=str2bool, 
-                        default=False, 
-                        help='Apply ctc.')
-    parser.add_argument('--ctc_weight', 
-                        type=float, 
-                        default=0.2, 
-                        help='Weighting of ctc.')
     # beam search
+    parser.add_argument('--convert_rate',
+                        type=float,
+                        default=0.166,
+                        help='Convert the length of audio to estimate the required decoding steps.')
     parser.add_argument('--beam_size',
                         type=int,
                         default=10,
@@ -153,31 +157,31 @@ def parse_args():
                         default=0.5, 
                         help='Weighting of recoring with language model.')
     # save dir
-    parser.add_argument('--train_data_path',
+    parser.add_argument('--train_data_dir',
                         type=str,
                         default='./data/LibriSpeech/LibriSpeech_train/train-clean-100',
                         help='')
-    parser.add_argument('--dev_data_path',
+    parser.add_argument('--dev_data_dir',
                         type=str,
                         default='./data/LibriSpeech/LibriSpeech_dev/dev-clean',
                         help='')
-    parser.add_argument('--test_data_path',
+    parser.add_argument('--test_data_dir',
                         type=str,
                         default='./data/LibriSpeech/LibriSpeech_test/test-clean',
                         help='')
-    parser.add_argument('--feat_path', 
+    parser.add_argument('--feat_dir', 
                         type=str, 
                         default='./data/LibriSpeech/features', 
                         help='Path to save features.')
-    parser.add_argument('--log_path',
+    parser.add_argument('--log_dir',
                         type=str,
                         default='./log',
                         help='Save log file..')
-    parser.add_argument('--save_path',
+    parser.add_argument('--save_dir',
                         type=str,
                         default='./model/las',
                         help='Save trained model.')
-    parser.add_argument('--summary_path',
+    parser.add_argument('--summary_dir',
                         type=str,
                         default='./summary',
                         help='Save summary.')
