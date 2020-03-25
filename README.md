@@ -4,7 +4,7 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 
 ## Overview
 
-![](demo/las.png)
+![](demo/overview.png)
 
 * Components:
     - Char/Subword text encoding.
@@ -28,7 +28,7 @@ Note that this project is still in progress.
     - Label smoothing. (IMPORANT)
     - Bucketing.
 
-In my experience, add more data is the best policy.
+In my experience, adding more data is the best policy.
 
 ## Requirements
 ```
