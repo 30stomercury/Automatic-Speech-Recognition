@@ -1,12 +1,14 @@
-import librosa
-import soundfile
-import speechpy
 import joblib
-import numpy as np
 from glob import glob
 import string
 import os
+import sys
+import json
+import logging
 from tqdm import tqdm
+import librosa
+import speechpy
+import numpy as np
 
 from las.arguments import parse_args
 from utils.text import text_encoder
@@ -14,6 +16,13 @@ from utils.augmentation import speed_augmentation, volume_augmentation
 
 # When number of audios in a set (usually training set) > threshold, divide set into several parts to avoid memory error.
 _SAMPLE_THRESHOLD = 50000
+
+# set logging
+logging.basicConfig(stream=sys.stdout,
+                    format='%(asctime)s %(levelname)s:%(message)s', 
+                    level=logging.INFO,
+                    datefmt='%I:%M:%S')
+
 
 def data_preparation(libri_path):
     """Prepare texts and its corresponding audio file path
@@ -58,24 +67,20 @@ def process_audios(audio_path, args):
     featlen = []
     for p in tqdm(audio_path):
 
-        try:
-            audio, fs = soundfile.read(p)
-        except:
-            print(p)
-            pass
+        audio, fs = librosa.load(p, sr=None)
 
         if feat_type == 'mfcc':
-            assert feat_dim == 13, "13 is commonly used"
+            assert feat_dim == 39, "13+delta+accelerate"
             mfcc = speechpy.feature.mfcc(audio, 
                                          fs, 
                                          frame_length=frame_length/1000, 
                                          frame_stride=frame_step/1000, 
-                                         num_cepstral=feat_dim)
+                                         num_cepstral=13) # 13 is commonly used
             
             if cmvn:
                 mfcc = speechpy.processing.cmvn(mfcc, True)
             mfcc_39 = speechpy.feature.extract_derivative_feature(mfcc)
-            feats.append(mfcc_39.reshape(-1, feat_dim*3).astype(np.float32))
+            feats.append(mfcc_39.reshape(-1, feat_dim).astype(np.float32))
 
         elif feat_type == 'fbank':
             fbank = speechpy.feature.lmfe(audio, 
@@ -89,7 +94,7 @@ def process_audios(audio_path, args):
 
         featlen.append(len(feats[-1]))
 
-    return feats, featlen
+    return np.array(feats), featlen
 
 def process_texts(texts, tokenizer):
     """
@@ -108,7 +113,9 @@ def process_texts(texts, tokenizer):
     return np.array(tokens), np.array(tokenlen).astype(np.int32)
 
 def process_ted(cat, args, tokenizer):
-    """Process ted audios"""
+    """Process ted audios
+    referencr: https://github.com/buriburisuri/speech-to-text-wavenet
+    """
 
     _parent_path = 'data/TEDLIUM_release1/' + cat + '/'
     train_text = []
@@ -145,28 +152,32 @@ def process_ted(cat, args, tokenizer):
 
     # save to log
     if cat == "train" and args.unit == "subword":
-        with open(args.log_path+"/train_gt.txt", 'w') as fout:
+        with open(args.log_dir+"/train_gt.txt", 'w') as fout:
             fout.write("\n".join(train_texts))
-        tokenizer.train_subword_tokenizer(args.log_path)
+        tokenizer.train_subword_tokenizer(args.log_dir)
 
     audio_path = []
+    wav_path = 'data/TEDLIUM_release1/{}_wav'.format(cat)
+    if not os.path.exists(wav_path):
+        os.makedirs(wav_path)
      
     # save results
     for i, (wave_file, offset, dur) in enumerate(zip(wave_files, offsets, durs)):
         fn = "%s-%.2f" % (wave_file.split('/')[-1], offset)
-        print("TEDLIUM corpus preprocessing (%d / %d) - '%s-%.2f]" % (i, len(wave_files), wave_file, offset))
 
-        # load
-        audio, fs = librosa.load(wave_file, mono=True, sr=None, offset=offset, duration=dur)
-
-        # for debug and augmentation
-        train_wav_path = 'data/TEDLIUM_release1/{}_wav'.format(cat)
         file_name = wave_file.split("/")[-1][:-8].replace(".", "")
-        file_path = train_wav_path+'/{}_{}.wav'.format(file_name, i)
+        file_path = wav_path+'/{}_{}.wav'.format(file_name, i)
 
-        if not os.path.exists(train_wav_path):
-            os.makedirs(train_wav_path)
-        librosa.output.write_wav(file_path, audio, fs)
+        logging.info("TEDLIUM corpus preprocessing (%d / %d) - '%s-%.2f]" % (i, len(wave_files), wave_file, offset))
+
+        if os.path.isfile(file_path):
+            logging.info("file exists")
+        else:
+            # load
+            audio, fs = librosa.load(wave_file, sr=None, mono=True, offset=offset, duration=dur)
+
+            # for debug and augmentation
+            librosa.output.write_wav(file_path, audio, fs)
 
         audio_path.append(file_path)
         
@@ -188,29 +199,29 @@ def main_ted(args):
             n = len(feats) // k + 1
             # save
             for i in range(k):
-                joblib.dump(feats[i*n:(i+1)*n], args.feat_path+"/{}_feats_{}.pkl".format(cat, i))
+                joblib.dump(feats[i*n:(i+1)*n], args.feat_dir+"/{}_feats_{}.pkl".format(cat, i))
         else:
-            joblib.dump(feats, args.feat_path+"/{}_feats.pkl".format(cat))
+            joblib.dump(feats, args.feat_dir+"/{}_feats.pkl".format(cat))
 
-    print("Process train/dev features...")
-    if not os.path.exists(args.feat_path):
-        os.makedirs(args.feat_path)
+    logging.info("Process train/dev features...")
+    if not os.path.exists(args.feat_dir):
+        os.makedirs(args.feat_dir)
 
     special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     tokenizer = text_encoder(args.unit, special_tokens)
 
     for cat in ['train', 'dev', 'test']:
         
-        print("Process {} data...".format(cat))
+        logging.info("Process {} data...".format(cat))
         feats, featlen, tokens, tokenlen, audio_path = process_ted(cat, args, tokenizer)
 
         # save feats
         save_ted_feats(feats, cat, 3)
-        np.save(args.feat_path+"/{}_featlen.npy".format(cat), featlen)
+        np.save(args.feat_dir+"/{}_featlen.npy".format(cat), featlen)
 
         # save text features
-        np.save(args.feat_path+"/{}_{}s.npy".format(cat, args.unit), tokens)
-        np.save(args.feat_path+"/{}_{}len.npy".format(cat, args.unit), tokenlen)
+        np.save(args.feat_dir+"/{}_{}s.npy".format(cat, args.unit), tokens)
+        np.save(args.feat_dir+"/{}_{}len.npy".format(cat, args.unit), tokenlen)
         
         feats = []
 
@@ -218,15 +229,16 @@ def main_ted(args):
         if args.augmentation and cat == "train":
 
             speed_list = [0.9, 1.1]
-            print("Process aug data...") 
+            logging.info("Process aug data...") 
             # speed aug
             for s in speed_list:
+                logging.info("Process speed {} data...".format(s)) 
                 aug_audio_path = speed_augmentation(filelist=audio_path,
                                                     target_folder="data/TEDLIUM_release1/ted_speed_aug", 
                                                     speed=s)
                 aug_feats, aug_featlen = process_audios(aug_audio_path, args) 
                 save_ted_feats(aug_feats, "speed_{}".format(s), 3)
-                np.save(args.feat_path+"/speed_{}_featlen.npy".format(s), aug_featlen)
+                np.save(args.feat_dir+"/speed_{}_featlen.npy".format(s), aug_featlen)
                 aug_feats = []
 
 def main_libri(args):
@@ -238,54 +250,55 @@ def main_libri(args):
         if len(audio_path) > _SAMPLE_THRESHOLD:
             featlen = []
             n = len(audio_path) // k + 1
-            print("Process {} audios...".format(cat))
+            loggin.info("Process {} audios...".format(cat))
             for i in range(k):
-                #feats, featlen_ = process_audios(audio_path[i*n:(i+1)*n], args)
-                feats, featlen_ = process_audios(audio_path, args)
+                feats, featlen_ = process_audios(audio_path[i*n:(i+1)*n], args)
                 featlen += featlen_
                 # save
-                joblib.dump(feats, args.feat_path+"/{}_feats_{}.pkl".format(cat, i))
+                joblib.dump(feats, args.feat_dir+"/{}_feats_{}.pkl".format(cat, i))
                 feats = []
         else:
             feats, featlen = process_audios(audio_path, args)
-            joblib.dump(feats, args.feat_path+"/{}_feats.pkl".format(cat))
+            joblib.dump(feats, args.feat_dir+"/{}_feats.pkl".format(cat))
 
-        np.save(args.feat_path+"/{}_featlen.npy".format(cat), featlen)
+        np.save(args.feat_dir+"/{}_featlen.npy".format(cat), featlen)
 
 
     # texts
     special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     tokenizer = text_encoder(args.unit, special_tokens)
     
-    path = [args.train_data_path, args.dev_data_path, args.test_data_path]
-    for index, cat in enumerate(['train', 'dev', 'test']):
+    #path = [args.train_data_dir, args.dev_data_dir, args.test_data_dir]
+    path = [args.dev_data_dir, args.test_data_dir]
+    #for index, cat in enumerate(['train', 'dev', 'test']):
+    for index, cat in enumerate(['dev', 'test']):
         # prepare data
         libri_path = path[index]
         texts, audio_path = data_preparation(libri_path)
 
         if cat == 'train' and args.unit == 'subword':
             # save to log
-            with open(args.log_path+"/train_gt.txt", 'w') as fout:
+            with open(args.log_dir+"/train_gt.txt", 'w') as fout:
                 fout.write("\n".join(texts))
             # train BPE
-            tokenizer.train_subword_tokenizer(args.log_path)
+            tokenizer.train_subword_tokenizer(args.log_dir)
 
-        print("Process {} texts...".format(cat))
-        if not os.path.exists(args.feat_path):
-            os.makedirs(args.feat_path)
+        logging.info("Process {} texts...".format(cat))
+        if not os.path.exists(args.feat_dir):
+            os.makedirs(args.feat_dir)
 
         tokens, tokenlen = process_texts(texts, tokenizer)
 
         # save text features
-        np.save(args.feat_path+"/{}_{}s.npy".format(cat, args.unit), tokens)
-        np.save(args.feat_path+"/{}_{}len.npy".format(cat, args.unit), tokenlen)
+        np.save(args.feat_dir+"/{}_{}s.npy".format(cat, args.unit), tokens)
+        np.save(args.feat_dir+"/{}_{}len.npy".format(cat, args.unit), tokenlen)
 
         # audios
         process_libri_feats(audio_path, cat, 4)
         
         # augmentation
         if args.augmentation and cat == 'train':   
-            folder = args.feat_path.split("/")[1]
+            folder = args.feat_dir.split("/")[1]
             speed_list = [0.9, 1.1]
             
             # speed aug
@@ -303,13 +316,17 @@ def main_libri(args):
                                                 vol_range=volume_list)
             aug_feats, aug_featlen = process_audios(aug_audio_path, args)
             # save
-            np.save(args.feat_path+"/aug_feats_{}.npy".format("vol"), aug_feats)    
-            np.save(args.feat_path+"/aug_featlen_{}.npy".format("vol"), aug_featlen)
+            np.save(args.feat_dir+"/aug_feats_{}.npy".format("vol"), aug_feats)    
+            np.save(args.feat_dir+"/aug_featlen_{}.npy".format("vol"), aug_featlen)
             """
 
 if __name__ == '__main__':
     # arguments
     args = parse_args()
+
+    print('=' * 60 + '\n')
+    logging.info('Parameters are:\n%s\n', json.dumps(vars(args), sort_keys=False, indent=4))
+    print('=' * 60 )
 
     if args.dataset == 'LibriSpeech':
         main_libri(args)
@@ -318,4 +335,4 @@ if __name__ == '__main__':
         main_ted(args)
 
     else:
-        print("Set dataset to 'Librispeech' or 'TEDLIUM'")
+        loggin.info("Set dataset to 'Librispeech' or 'TEDLIUM'")
