@@ -1,6 +1,6 @@
 # A TensorFlow Implementation of [Listen Attention and Spell](https://arxiv.org/abs/1508.01211)
 
-This is a tensorflow implementation of end-to-end ASR. Though there are several fantastic github repos in tensorflow, I tried to implemented it **without using `tf.contrib.seq2seq` API**. In addition, the performance on LibriSpeech dev/test datasets is presented.
+This is a tensorflow implementation of end-to-end ASR. Though there are several fantastic github repos in tensorflow, I tried to implement it **without using `tf.contrib.seq2seq` API** in this repo. In addition, the results on LibriSpeech dev/test sets are presented.
 
 ## Overview
 
@@ -12,7 +12,7 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
     - Char/Subword text encoding.
     - MFCC/fbank acoustic features with CMVN.
     - LAS training (visualized with tensorboard: loss, sample text outputs, features, alignments).  
-    - Joint CTC-Attention training. (See notes)
+    - Support joint CTC-Attention training. (See notes)
     - Batch testing using greedy decoder.
     - Beam search decoder.
     - RNNLM.
@@ -29,6 +29,7 @@ Note that this project is still in progress.
     - Augmentation include speed perturbation. (IMPORTANT) 
     - Label smoothing. (IMPORANT)
     - Bucketing.
+    - Segment a long utterance into two smaller chunks and decode each chunk independently. Then combined the outputs together.
 
 * Some advice
     - Generally, LibriSpeech-100 is not large enough unless you perform speed augmentation.
@@ -40,27 +41,100 @@ Note that this project is still in progress.
 </p>
 
 ## Requirements
-```
+```bash
 pip3 install virtualenv
 virtualenv --python=python3 venv
 source venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
-## Prepare libirspeech train/dev/test data
-```
+## Arguments
+
+The definitions of the args are described in `las/arguments.py`. You can modify all args there before preprocessing, training, testing and decoding.
+
+## Usage
+
+### 0) Prepare data
+- Libirspeech train/dev/test data
+```bash
 sh prepare_libri_data.sh LibriSpeech-100 (OR LibriSpeech-360)
 ```
 
-## Prepare tedlium train/dev/test data
-```
+- TEDLIUM train/dev/test data
+```bash
 sh prepare_ted_data.sh TED-LIUMv1 (OR TED-LIUMv2)
 ```
-## Train
 
-## Test
+### 1) Preprocess Audios & Texts.
+- Libirspeech train/dev/test data
+```bash
+python3 preprocess.py --dataset LibriSpeech \
+                      --train_data_dir data/LibriSpeech/LibriSpeech_train/train-clean-100/ \
+                      --feat_dir data/LibriSpeech/features \
+                      --unit UNIT \
+                      --augmentation AUGMENTATION \
+                      --feat_type FEAT_TYPE
+                      --feat_dim FEAT_DIM
+```
+
+- TEDLIUM train/dev/test data
+```bash
+python3 preprocess.py --dataset TEDLIUM \
+                      --feat_dir data/LibriSpeech/features \
+                      --unit UNIT \
+                      --augmentation AUGMENTATION \
+                      --feat_type FEAT_TYPE
+                      --feat_dim FEAT_DIM
+```
+
+### 2) Training
+```bash
+python3 train.py --unit UNIT \
+                 --augmentation AUGMENTATION \
+                 --label_smoothing LABEL_SMOOTHING \
+                 --enc_units ENC_UNITS \
+                 --dec_units DEC_UNITS \
+                 --num_enc_layers NUM_ENC_LAYERS \
+                 --num_dec_layers NUM_DEC_LAYERS \
+                 --embedding_size EMBEDDING_SIZE \
+                 --attention_size ATTENTION_SIZE \
+                 --batch_size BATCH_SIZE \
+                 --dropout_rate DROPOUT_RATE \
+                 --teacher_forcing_rate TEACHER_FORCING_RATE \
+                 --lr LR \
+                 --epoch EPOCH \
+                 --bucketing BUCKETING \
+                 --feat_dim FEAT_DIM \ 
+                 --feat_dir FEAT_DIR \
+                 --grad_clip GRAD_CLIP \
+                 --maxlen MAXLEN
+                 --save_dir SAVE_DIR \
+                 --summary_dir SUMMARY_DIR \
+```
+
+### 3) Testing
+Testing with gready decoder.
+```bash
+python3 test.py --split SPLIT \           # test or dev
+                --unit UNIT \ 
+                --feat_dim FEAT_DIM \ 
+                --feat_dir FEAT_DIR \
+                --save_dir SAVE_DIR \
+```
 
 ## Decode
+Beam search decoder.
+```bash
+python3 decode.py --split SPLIT \         # test or dev
+                  --unit UNIT \ 
+                  --beam_size BEAM_SIZE \
+                  --convert_rate 0.24 \   # 0.24 is large enough.
+                  --apply_lm APPLY_LM \         
+                  --lm_weight LM_WEIGHT \
+                  --feat_dim FEAT_DIM \ 
+                  --feat_dir FEAT_DIR \
+                  --save_dir SAVE_DIR \
+```
 
 ## Tensorboard
 ```
