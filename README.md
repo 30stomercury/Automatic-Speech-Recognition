@@ -5,7 +5,7 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 ## Overview
 
 <p align="center">
-  <img src="demo/las.png" width="560" height="400">
+  <img src="demo/las.png" width="570" height="400">
 </p>
 
 * Components:
@@ -36,7 +36,7 @@ Note that this project is still in progress.
     - A better way to check if your model is learning in a right way is to monitor the speech-text aligments in tensorboard as below.
 
 <p align="center">
-  <img src="demo/align.png" width="560" height="220">
+  <img src="demo/align.png" width="660" height="200">
 </p>
 
 ## Requirements
