@@ -10,9 +10,10 @@ import json
 import os
 import sys
 import logging
+import joblib
 import numpy as np
 import tensorflow as tf
-from las.beam_search_v2 import BeamSearch
+from las.beam_search import BeamSearch
 from utils.text import text_encoder
 from las.utils import convert_idx_to_string, wer
 from las.arguments import parse_args
@@ -82,10 +83,10 @@ sess = tf.Session()
 # load from previous output
 try:
     logging.info("Load features...")
-    dev_feats = np.load(args.feat_path+"/dev_feats.npy", allow_pickle=True)
-    dev_featlen = np.load(args.feat_path+"/dev_featlen.npy", allow_pickle=True)
-    dev_tokens = np.load(args.feat_path+"/dev_{}s.npy".format(args.unit), allow_pickle=True)
-    dev_tokenlen = np.load(args.feat_path+"/dev_{}len.npy".format(args.unit), allow_pickle=True)
+    dev_feats = joblib.load(args.feat_dir+"/{}_feats.pkl".format(args.split))
+    dev_featlen = np.load(args.feat_dir+"/{}_featlen.npy".format(args.split), allow_pickle=True)
+    dev_tokens = np.load(args.feat_dir+"/{}_{}s.npy".format(args.split, args.unit), allow_pickle=True)
+    dev_tokenlen = np.load(args.feat_dir+"/{}_{}len.npy".format(args.split, args.unit), allow_pickle=True)
 
 # process features
 except:
@@ -105,7 +106,7 @@ bs = BeamSearch(args, las, token_to_id, lm)
 
 # restore
 #logging.info("Restore LAS model.")
-ckpt = bs.restore_las(sess, args.save_path, args.restore_epoch)
+ckpt = bs.restore_las(sess, args.save_dir, args.restore_epoch)
 logging.info("LAS restored: {}".format(ckpt))
 
 if args.apply_lm:
@@ -116,7 +117,7 @@ else:
     var_lm = {}
 
 # sort by length
-sorted_id = np.argsort(dev_tokenlen)[:5]
+sorted_id = np.argsort(dev_tokenlen)
 dev_feats, dev_featlen, dev_tokens = \
             dev_feats[sorted_id], dev_featlen[sorted_id], dev_tokens[sorted_id]
 res = []

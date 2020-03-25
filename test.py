@@ -10,6 +10,7 @@ import os
 import sys
 import logging
 import json
+import joblib
 from tqdm import tqdm
 import numpy as np
 import tensorflow as tf
@@ -46,17 +47,17 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 # load from previous output
 try:
     logging.info("Load features...")
-    dev_feats = np.load(args.feat_path+"/dev_feats.npy", allow_pickle=True)
-    dev_featlen = np.load(args.feat_path+"/dev_featlen.npy", allow_pickle=True)
-    dev_tokens = np.load(args.feat_path+"/dev_chars.npy", allow_pickle=True)
-    dev_tokenlen = np.load(args.feat_path+"/dev_charlen.npy", allow_pickle=True)
-    special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
+    dev_feats = joblib.load(args.feat_dir+"/{}_feats.pkl".format(args.split))
+    dev_featlen = np.load(args.feat_dir+"/{}_featlen.npy".format(args.split), allow_pickle=True)
+    dev_tokens = np.load(args.feat_dir+"/{}_{}s.npy".format(args.split, args.unit), allow_pickle=True)
+    dev_tokenlen = np.load(args.feat_dir+"/{}_{}len.npy".format(args.split, args.unit), allow_pickle=True)
 
 # process features
 except:
     raise Exception("Run preprocess.py first")
 
 # tokenizer 
+special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
 tokenizer = text_encoder(args.unit, special_tokens)
 id_to_token = tokenizer.id_to_token
 args.vocab_size = tokenizer.get_vocab_size()
@@ -76,10 +77,10 @@ dev_logits, y_hat = las.inference(dev_xs)
 
 # saver
 saver = tf.train.Saver(max_to_keep=100)
-ckpt = tf.train.latest_checkpoint(args.save_path)
+ckpt = tf.train.latest_checkpoint(args.save_dir)
 
 if args.restore_epoch != -1:
-    ckpt = args.save_path+"/las_E{}".format(args.restore_epoch)
+    ckpt = args.save_dir+"/las_E{}".format(args.restore_epoch)
 
 saver.restore(sess, ckpt)
 
@@ -88,7 +89,7 @@ sess.run(dev_iter.initializer)
 
 # info
 print('=' * 60)
-logging.info("Training command: python3 {}".format(" ".join(sys.argv)))
+logging.info("Testing command: python3 {}".format(" ".join(sys.argv)))
 print('=' * 60)
 logging.info("Total weights: {}".format(np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
 
@@ -110,10 +111,10 @@ for i in range(len(output_id)):
     texts_pred.append(hyp_)
     texts_gt.append(gt_)
 
-with open(args.log_path+"/test_pred.txt", 'w') as fout:
+with open(args.log_dir+"/test_pred.txt", 'w') as fout:
     fout.write("\n".join(texts_pred))
 
-with open(args.log_path+"/test_gt.txt", 'w') as fout:
+with open(args.log_dir+"/test_gt.txt", 'w') as fout:
     fout.write("\n".join(texts_gt))
 
 # evaluate WER
