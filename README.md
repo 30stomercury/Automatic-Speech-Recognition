@@ -21,7 +21,7 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 
 Note that this project is still in progress.
 * Notes
-    - Currently, I only test this model on MFCC 39 (13+delta+accelerate) features + character text encoding and trianed without CTC loss.
+    - Currently, I only test this model on MFCC 39 (13+delta+accelerate) features + character text encoding.
     - BPE and CTC related parts are not yet fully tested.
     - Volume augmentation is currently commented out because it shows little improvements.
 
