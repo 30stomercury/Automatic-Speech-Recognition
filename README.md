@@ -66,7 +66,7 @@ sh prepare_ted_data.sh TED-LIUMv1 (OR TED-LIUMv2)
 ```
 
 ### 1) Preprocess Audios & Texts.
-- Libirspeech train/dev/test data
+Prepare Libirspeech train/dev/test data:
 ```bash
 python3 preprocess.py --dataset LibriSpeech \
                       --train_data_dir data/LibriSpeech/LibriSpeech_train/train-clean-100/ \
@@ -77,7 +77,7 @@ python3 preprocess.py --dataset LibriSpeech \
                       --feat_dim FEAT_DIM
 ```
 
-- TEDLIUM train/dev/test data
+Prepare TEDLIUM train/dev/test data:
 ```bash
 python3 preprocess.py --dataset TEDLIUM \
                       --feat_dir data/LibriSpeech/features \
@@ -88,6 +88,7 @@ python3 preprocess.py --dataset TEDLIUM \
 ```
 
 ### 2) Training
+Train Listen Attend and Spell:
 ```bash
 python3 train.py --unit UNIT \
                  --augmentation AUGMENTATION \
@@ -109,8 +110,10 @@ python3 train.py --unit UNIT \
                  --grad_clip GRAD_CLIP \
                  --maxlen MAXLEN
                  --save_dir SAVE_DIR \
-                 --summary_dir SUMMARY_DIR \
+                 --summary_dir SUMMARY_DIR 
 ```
+Train RNNLM: 
+(NOT READY)
 
 ### 3) Testing
 Testing with gready decoder.
@@ -119,10 +122,10 @@ python3 test.py --split SPLIT \           # test or dev
                 --unit UNIT \ 
                 --feat_dim FEAT_DIM \ 
                 --feat_dir FEAT_DIR \
-                --save_dir SAVE_DIR \
+                --save_dir SAVE_DIR 
 ```
 
-## Decode
+## 4) Decode
 Beam search decoder.
 ```bash
 python3 decode.py --split SPLIT \         # test or dev
@@ -133,13 +136,16 @@ python3 decode.py --split SPLIT \         # test or dev
                   --lm_weight LM_WEIGHT \
                   --feat_dim FEAT_DIM \ 
                   --feat_dir FEAT_DIR \
-                  --save_dir SAVE_DIR \
+                  --save_dir SAVE_DIR 
 ```
 
 ## Tensorboard
 ```
 tensorboard --logdir ./summary
 ```
+
+## Results
+
 
 ## TODO
 - [ ] Evaluate performance with subword unit: Subword las training, subword-based RNNLM. 
