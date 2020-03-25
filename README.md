@@ -1,6 +1,6 @@
 # A TensorFlow Implementation of [Listen Attention and Spell](https://arxiv.org/abs/1508.01211)
 
-This is a tensorflow implementation of end-to-end ASR. Though there are several fantastic github repos in tensorflow, I tried to implemented it **without using `tf.contrib.seq2seq` API**. In addition, the performance on LibriSpeech dev/test datasets are evaluated with.
+This is a tensorflow implementation of end-to-end ASR. Though there are several fantastic github repos in tensorflow, I tried to implemented it **without using `tf.contrib.seq2seq` API**. In addition, the performance on LibriSpeech dev/test datasets is presented.
 
 ## Overview
 
@@ -12,8 +12,8 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
     - LAS training (visualized with tensorboard: loss, sample text outputs, features, alignments).  
     - Joint CTC-Attention training. (See notes)
     - Batch testing using greedy decoder.
-    - RNNLM.
     - Beam search decoder.
+    - RNNLM.
 
 ## Remarks
 
@@ -24,11 +24,14 @@ Note that this project is still in progress.
     - Volume augmentation is currently commented out because it shows little improvements.
 
 * Improvements
-    - Augmentation include speed. (IMPORTANT) 
+    - Augmentation include speed perturbation. (IMPORTANT) 
     - Label smoothing. (IMPORANT)
     - Bucketing.
 
+Generally, LibriSpeech-100 is not large enough unless you perform speed augmentation.
 In my experience, adding more data is the best policy.
+A better way to check if your model is learning is to monitor the speech-text aligments.
+![](demo/align.png)
 
 ## Requirements
 ```
