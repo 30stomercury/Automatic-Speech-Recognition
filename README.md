@@ -4,7 +4,9 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 
 ## Overview
 
-![](demo/overview.png)
+<p align="center">
+  <img src="demo/overview.png" width="560" height="320">
+</p>
 
 * Components:
     - Char/Subword text encoding.
@@ -33,7 +35,9 @@ Note that this project is still in progress.
     - **In my experience, adding more data is the best policy.**
     - A better way to check if your model is learning in a right way is to monitor the speech-text aligments in tensorboard as below.
 
-![](demo/align.png)
+<p align="center">
+  <img src="demo/las.png" width="560" height="220">
+</p>
 
 ## Requirements
 ```
