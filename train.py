@@ -20,7 +20,7 @@ from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
 from data_loader import batch_gen
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3' # set your device id
+os.environ['CUDA_VISIBLE_DEVICES'] = '0' # set your device id
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 # arguments
@@ -52,19 +52,19 @@ def load_feats(path, cat):
 try:
     print("Load features...")
     # train
-    train_feats = load_feats(args.feat_path, "train")
+    train_feats = load_feats(args.feat_dir, "train")
     train_featlen = np.load(
-        args.feat_path+"/train_featlen.npy", allow_pickle=True)
+        args.feat_dir+"/train_featlen.npy", allow_pickle=True)
     train_tokens = np.load(
-        args.feat_path+"/train_{}s.npy".format(args.unit), allow_pickle=True)
+        args.feat_dir+"/train_{}s.npy".format(args.unit), allow_pickle=True)
     train_tokenlen = np.load(
-        args.feat_path+"/train_{}len.npy".format(args.unit), allow_pickle=True)
+        args.feat_dir+"/train_{}len.npy".format(args.unit), allow_pickle=True)
     # aug
     if args.augmentation:
         for factor in [0.9, 1.1]:
-            aug_feats = load_path(args.feat_path, "speed_{}".format(factor))
+            aug_feats = load_feats(args.feat_dir, "speed_{}".format(factor))
             aug_featlen = np.load(
-                    args.feat_path+"/speed_{}_featlen.npy".format(factor), allow_pickle=True)
+                    args.feat_dir+"/speed_{}_featlen.npy".format(factor), allow_pickle=True)
             train_feats = np.append(train_feats, aug_feats)
             train_featlen = np.append(train_featlen, aug_featlen)
             train_tokens = np.append(train_tokens, train_tokens[:len(aug_feats)])
@@ -109,15 +109,15 @@ logging.info("Build train graph (please wait)...")
 loss, train_op, global_step, train_logits, alphas, train_summary = las.train(train_xs, train_ys)
 
 # saver
-if not os.path.exists(args.save_path):
-    os.makedirs(args.save_path)
+if not os.path.exists(args.save_dir):
+    os.makedirs(args.save_dir)
 
 saver = tf.train.Saver(max_to_keep=100)
 
-if args.restore > 0:
-    ckpt = args.save_path + "/las_E{}".format(args.restore)
+if args.restore_epoch > 0:
+    ckpt = args.save_dir + "/las_E{}".format(args.restore_epoch)
 else:
-    ckpt = tf.train.latest_checkpoint(args.save_path)
+    ckpt = tf.train.latest_checkpoint(args.save_dir)
 
 if ckpt is None:
     sess.run(tf.global_variables_initializer())
@@ -128,7 +128,7 @@ else:
 sess.run(train_iter.initializer)
 
 # summary
-summary_writer = tf.summary.FileWriter(args.summary_path, sess.graph)
+summary_writer = tf.summary.FileWriter(args.summary_dir, sess.graph)
 
 # info
 print('=' * 60 + '\n')
@@ -139,7 +139,7 @@ logging.info("Total weights: {}".format(
 
 # training
 training_steps = num_train_batches * args.epoch
-logging.info("Total num train batches:", num_train_batches)
+logging.info("Total num train batches:".format(num_train_batches))
 logging.info("Training...")
 loss_ = []
 
@@ -159,7 +159,7 @@ for step in range(training_steps):
         ave_loss = np.mean(loss_)
         e_ =  gs // num_train_batches
         logging.info('=' * 19 + ' Epoch %d, Step %d, Ave loss %d' + '=' * 19 + '\n', e_, gs, ave_loss)
-        saver.save(sess, args.save_path+"/las_E{}".format(e_))      
+        saver.save(sess, args.save_dir+"/las_E{}".format(e_))      
         loss_ = []  
 
 summary_writer.close()

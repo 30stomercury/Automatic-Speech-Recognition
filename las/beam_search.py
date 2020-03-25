@@ -73,6 +73,7 @@ class BeamSearch(object):
 
         # decode
         dec_init_state, lm_init_state = self._get_dec_init(sess), None
+
         if self.args.apply_lm:
             lm_init_state = self._get_lm_init(sess)
 
