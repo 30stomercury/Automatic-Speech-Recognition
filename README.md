@@ -5,7 +5,7 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 ## Overview
 
 <p align="center">
-  <img src="demo/las.png" width="580" height="400">
+  <img src="demo/las.png" width="590" height="400">
 </p>
 
 * Components:
@@ -21,7 +21,8 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 
 Note that this project is still in progress.
 * Notes
-    - Currently, I only test this model on: MFCC 39 (13+delta+accelerate) features + character text encoding + training without CTC loss.
+    - Currently, I only test this model on: 
+        MFCC 39 (13+delta+accelerate) features + character text encoding + training without CTC loss.
     - BPE and CTC related parts are not yet fully tested.
     - Volume augmentation is currently commented out because it shows little improvements.
 
@@ -33,10 +34,10 @@ Note that this project is still in progress.
 * Some advice
     - Generally, LibriSpeech-100 is not large enough unless you perform speed augmentation.
     - **In my experience, adding more data is the best policy.**
-    - A better way to check if your model is learning in a right way is to monitor the speech-text aligments in tensorboard as below.
+    - A better way to check if your model is learning in a right way is to monitor the speech-text aligments in tensorboard.
 
 <p align="center">
-  <img src="demo/align.png" width="690" height="200">
+  <img src="demo/align.png" width="700" height="200">
 </p>
 
 ## Requirements
