@@ -8,7 +8,7 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 
 * Components:
     - Char/Subword text encoding.
-    - MFCC/fbank acoustic features.
+    - MFCC/fbank acoustic features with CMVN.
     - LAS training (visualized with tensorboard: loss, sample text outputs, features, alignments).  
     - Joint CTC-Attention training. (See notes)
     - Batch testing using greedy decoder.
@@ -28,9 +28,11 @@ Note that this project is still in progress.
     - Label smoothing. (IMPORANT)
     - Bucketing.
 
-Generally, LibriSpeech-100 is not large enough unless you perform speed augmentation.
-In my experience, adding more data is the best policy.
-A better way to check if your model is learning is to monitor the speech-text aligments.
+* Some advice
+    - Generally, LibriSpeech-100 is not large enough unless you perform speed augmentation.
+    - **In my experience, adding more data is the best policy.**
+    - A better way to check if your model is learning in a right way is to monitor the speech-text aligments in tensorboard as below.
+
 ![](demo/align.png)
 
 ## Requirements
@@ -51,6 +53,10 @@ sh prepare_libri_data.sh LibriSpeech-100 (OR LibriSpeech-360)
 sh prepare_ted_data.sh TED-LIUMv1 (OR TED-LIUMv2)
 ```
 ## Train
+
+## Test
+
+## Decode
 
 ## Tensorboard
 ```
