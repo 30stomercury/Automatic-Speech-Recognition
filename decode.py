@@ -105,12 +105,10 @@ las =  LAS(args, Listener, Speller, token_to_id)
 bs = BeamSearch(args, las, token_to_id, lm)
 
 # restore
-#logging.info("Restore LAS model.")
 ckpt = bs.restore_las(sess, args.save_dir, args.restore_epoch)
 logging.info("LAS restored: {}".format(ckpt))
 
 if args.apply_lm:
-    #logging.info("Restore language model.")
     bs.restore_lm(sess, model_path)
     logging.info("RNNLM restored: {}".format(model_path))
 else:

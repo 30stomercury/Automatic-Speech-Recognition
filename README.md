@@ -5,7 +5,7 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 ## Overview
 
 <p align="center">
-  <img src="demo/las.png" width="600" height="400">
+  <img src="demo/las.png" width="610" height="400">
 </p>
 
 * Components:
@@ -37,7 +37,7 @@ Note that this project is still in progress.
     - A better way to check if your model is learning in a right way is to monitor the speech-text aligments in tensorboard.
 
 <p align="center">
-  <img src="demo/align.png" width="720" height="200">
+  <img src="demo/align.png" width="730" height="200">
 </p>
 
 ## Requirements
@@ -149,7 +149,13 @@ Results trained on LibriSpeech-360:
 |       |  dev  |  test  | 
 |:-----:|:-----:|:-----:|
 | beam_size | 10 | 10 |
-| wer |   |   |   |
+| wer |   | 0.282  |   |
+
+## Reference
+- [Listen, Attend and Spell](https://arxiv.org/pdf/1508.01211.pdf)
+- [STATE-OF-THE-ART SPEECH RECOGNITION WITH SEQUENCE-TO-SEQUENCE MODELS](https://arxiv.org/pdf/1712.01769.pdf)
+- [ATTENTION-BASED SEQUENCE-TO-SEQUENCE MODEL FOR SPEECH RECOGNITION: DEVELOPMENT OF STATE-OF-THE-ART SYSTEM ON LIBRISPEECH AND ITS APPLICATION TO NON-NATIVE ENGLISH.](https://arxiv.org/pdf/1810.13088.pdf)
+- A nice Pytorch version: [End-to-end-ASR-Pytorch](https://github.com/Alexander-H-Liu/End-to-end-ASR-Pytorch).
 
 ## TODO
 - [ ] Evaluate performance with subword unit: Subword las training, subword-based RNNLM. 

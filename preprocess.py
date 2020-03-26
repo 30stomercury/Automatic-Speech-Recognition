@@ -268,10 +268,8 @@ def main_libri(args):
     special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     tokenizer = text_encoder(args.unit, special_tokens)
     
-    #path = [args.train_data_dir, args.dev_data_dir, args.test_data_dir]
-    path = [args.dev_data_dir, args.test_data_dir]
-    #for index, cat in enumerate(['train', 'dev', 'test']):
-    for index, cat in enumerate(['dev', 'test']):
+    path = [args.train_data_dir, args.dev_data_dir, args.test_data_dir]
+    for index, cat in enumerate(['train', 'dev', 'test']):
         # prepare data
         libri_path = path[index]
         texts, audio_path = data_preparation(libri_path)

@@ -158,7 +158,7 @@ for step in range(training_steps):
     if gs and gs % num_train_batches == 0:
         ave_loss = np.mean(loss_)
         e_ =  gs // num_train_batches
-        logging.info('=' * 19 + ' Epoch %d, Step %d, Ave loss %d' + '=' * 19 + '\n', e_, gs, ave_loss)
+        logging.info('=' * 19 + ' Epoch %d, Step %d, Ave loss %f' + '=' * 19 + '\n', e_, gs, ave_loss)
         saver.save(sess, args.save_dir+"/las_E{}".format(e_))      
         loss_ = []  
 
