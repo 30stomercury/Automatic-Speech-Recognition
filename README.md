@@ -29,7 +29,7 @@ Note that this project is still in progress.
     - Augmentation include speed perturbation. (IMPORTANT) 
     - Label smoothing. (IMPORANT)
     - Bucketing.
-    - Segment a long utterance into two smaller chunks and decode each chunk independently. Then combined the outputs together.
+    - Segment a long utterance into two smaller chunks and decode each chunk independently. Then combin the outputs together.
 
 * Some advice
     - Generally, LibriSpeech-100 is not large enough unless you perform speed augmentation.
