@@ -83,7 +83,7 @@ python3 preprocess.py --dataset TEDLIUM \
                       --feat_dir data/LibriSpeech/features \
                       --unit UNIT \
                       --augmentation AUGMENTATION \
-                      --feat_type FEAT_TYPE
+                      --feat_type FEAT_TYPE \
                       --feat_dim FEAT_DIM
 ```
 
@@ -108,7 +108,7 @@ python3 train.py --unit UNIT \
                  --feat_dim FEAT_DIM \ 
                  --feat_dir FEAT_DIR \
                  --grad_clip GRAD_CLIP \
-                 --maxlen MAXLEN
+                 --maxlen MAXLEN \
                  --save_dir SAVE_DIR \
                  --summary_dir SUMMARY_DIR 
 ```
