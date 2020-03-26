@@ -73,7 +73,7 @@ python3 preprocess.py --dataset LibriSpeech \
                       --feat_dir data/LibriSpeech/features \
                       --unit UNIT \
                       --augmentation AUGMENTATION \
-                      --feat_type FEAT_TYPE
+                      --feat_type FEAT_TYPE \
                       --feat_dim FEAT_DIM
 ```
 
