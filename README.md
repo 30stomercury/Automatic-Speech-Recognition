@@ -158,8 +158,8 @@ Results trained on LibriSpeech-360 (WER)
 - A nice Pytorch version: [End-to-end-ASR-Pytorch](https://github.com/Alexander-H-Liu/End-to-end-ASR-Pytorch).
 
 ## TODO
-- [ ] Evaluate performance with subword unit: Subword las training, subword-based RNNLM. 
-- [ ] Evaluate performance on joint CTC training, decoding.
+- [ ] Evaluate the performance with subword unit: Subword las training, subword-based RNNLM. 
+- [ ] Evaluate the performance on joint CTC training, decoding.
 - [ ] Test on TEDLIUM dataset.
 - [ ] Add other attention mechanisms such as multi-head attention. 
 - [ ] Add scheduled sampling.
