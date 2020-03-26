@@ -148,7 +148,7 @@ tensorboard --logdir ./summary
 Results trained on LibriSpeech-360 (WER)
 | Model |  dev-clean  |  test-clean  | 
 |:-----:|:-----:|:-----:|
-| Char LAS | 0.272  |   |
+| Char LAS | 0.255  | 0.262  |
 
 ## Reference
 - [Listen, Attend and Spell](https://arxiv.org/pdf/1508.01211.pdf)
