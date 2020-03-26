@@ -152,10 +152,10 @@ Results trained on LibriSpeech-360 (WER)
 
 ## Reference
 - [Listen, Attend and Spell](https://arxiv.org/pdf/1508.01211.pdf)
-- [State-of-The-Art Speech Recognition with Sequence-to-Sequence Models](https://arxiv.org/pdf/1712.01769.pdf)
-- [Attention-based Sequence-to-Sequence Model For Speech Recognition: Development of State-of-The-Art System on Librispeech and Its Application to Non-Native English.](https://arxiv.org/pdf/1810.13088.pdf)
-- A nice Pytorch version: [End-to-end-ASR-Pytorch](https://github.com/Alexander-H-Liu/End-to-end-ASR-Pytorch).
+- [State-of-the-Art Speech Recognition with Sequence-to-Sequence Models](https://arxiv.org/pdf/1712.01769.pdf)
+- [Attention-Based Sequence-to-Sequence Model For Speech Recognition: Development of State-of-the-Art System on Librispeech and Its Application to Non-Native English](https://arxiv.org/pdf/1810.13088.pdf)
 - Char RNNLM: [TensorFlow-Char-RNN](https://github.com/crazydonkey200/tensorflow-char-rnn)
+- A nice Pytorch version: [End-to-end-ASR-Pytorch](https://github.com/Alexander-H-Liu/End-to-end-ASR-Pytorch).
 
 ## TODO
 - [ ] Evaluate performance with subword unit: Subword las training, subword-based RNNLM. 
