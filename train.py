@@ -139,7 +139,7 @@ logging.info("Total weights: {}".format(
 
 # training
 training_steps = num_train_batches * args.epoch
-logging.info("Total num train batches:".format(num_train_batches))
+logging.info("Total num train batches: {}".format(num_train_batches))
 logging.info("Training...")
 loss_ = []
 
