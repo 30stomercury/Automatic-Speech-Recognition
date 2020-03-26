@@ -31,7 +31,7 @@ class BeamSearch(object):
             args: arguments.
             las: LAS.
             token_to_id: dict, map from tokenactor to index.
-            beam_size: int, beam size.
+            language_model: RNNLM class.
         """    
         self.args = args
         self.listener = las.listener
@@ -212,9 +212,11 @@ class BeamSearch(object):
         return np.array(lm_init_state) # convert LSTMTuple into nd array
 
     def _pack_state(self, state):
+        """Packed state to put N nodes into a batch"""
         return (state[0].reshape(1,-1), state[1].reshape(1,-1))
 
     def _get_decode_varlist(self, save_path):
+        """Get variables for decode graph."""
         # create restore dict for decode scope
         var = {}
         var_all = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, '')
@@ -232,6 +234,7 @@ class BeamSearch(object):
         return var
 
     def restore_las(self, sess, save_path, restore_epoch):
+        """Restore LAS ckpt."""
         ckpt = tf.train.latest_checkpoint(save_path)
         if restore_epoch != -1:
             ckpt = args.save_path+"/las_E{}".format(restore_epoch)
@@ -242,6 +245,7 @@ class BeamSearch(object):
         return ckpt
 
     def restore_lm(self, sess, save_path):
+        """Restore LM ckpt."""
         with tf.name_scope('evaluation'):
             var_all = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, '')
             var_list = [i[0] for i in tf.train.list_variables(save_path)]
