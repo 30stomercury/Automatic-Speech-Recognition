@@ -1,6 +1,6 @@
 # A TensorFlow Implementation of [Listen Attention and Spell](https://arxiv.org/abs/1508.01211)
 
-This is a tensorflow implementation of end-to-end ASR. Though there are several fantastic github repos in tensorflow, I tried to implement it **without using `tf.contrib.seq2seq` API** in this repo. In addition, the results on LibriSpeech dev/test sets are presented.
+This is a tensorflow implementation of end-to-end ASR. Though there are several fantastic github repos in tensorflow, I tried to implement it **without using `tf.contrib.seq2seq` API** in this repo. In addition, the performance on LibriSpeech dev/test sets is evaluated and the evaluation results are reasonable.
 
 ## Overview
 
@@ -145,17 +145,17 @@ tensorboard --logdir ./summary
 ```
 
 ## Results
-Results trained on LibriSpeech-360:
-|       |  dev  |  test  | 
+Results trained on LibriSpeech-360 (WER)
+| Model |  dev-clean  |  test-clean  | 
 |:-----:|:-----:|:-----:|
-| beam_size | 10 | 10 |
-| wer |   | 0.282  |   |
+| Char LAS | 0.282  |   |
 
 ## Reference
 - [Listen, Attend and Spell](https://arxiv.org/pdf/1508.01211.pdf)
-- [STATE-OF-THE-ART SPEECH RECOGNITION WITH SEQUENCE-TO-SEQUENCE MODELS](https://arxiv.org/pdf/1712.01769.pdf)
-- [ATTENTION-BASED SEQUENCE-TO-SEQUENCE MODEL FOR SPEECH RECOGNITION: DEVELOPMENT OF STATE-OF-THE-ART SYSTEM ON LIBRISPEECH AND ITS APPLICATION TO NON-NATIVE ENGLISH.](https://arxiv.org/pdf/1810.13088.pdf)
+- [State-of-The-Art Speech Recognition with Sequence-to-Sequence Models](https://arxiv.org/pdf/1712.01769.pdf)
+- [Attention-based Sequence-to-Sequence Model For Speech Recognition: Development of State-of-The-Art System on Librispeech and Its Application to Non-Native English.](https://arxiv.org/pdf/1810.13088.pdf)
 - A nice Pytorch version: [End-to-end-ASR-Pytorch](https://github.com/Alexander-H-Liu/End-to-end-ASR-Pytorch).
+- Char RNNLM: [TensorFlow-Char-RNN](https://github.com/crazydonkey200/tensorflow-char-rnn)
 
 ## TODO
 - [ ] Evaluate performance with subword unit: Subword las training, subword-based RNNLM. 
