@@ -148,8 +148,9 @@ for step in range(training_steps):
                         [loss, global_step, train_op, train_summary, train_logits, train_ys])
 
     if args.verbose > 0:
-        logging.info("HYP: {}\nREF: {}".format(
-            convert_idx_to_string(np.argmax(logits, -1)[0], id_to_token, args.unit), 
+        logging.info("HYP: {}".format(
+            convert_idx_to_string(np.argmax(logits, -1)[0], id_to_token, args.unit)))
+        logging.info("REF: {}\n".format(
             convert_idx_to_string(train_gt[0][0], id_to_token, args.unit)))
 
     logging.info("Step: {}, Loss: {}".format(gs, batch_loss))
