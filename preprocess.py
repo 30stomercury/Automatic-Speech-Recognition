@@ -174,7 +174,7 @@ def process_ted(cat, args, tokenizer):
             logging.info("file exists")
         else:
             # load
-            audio, fs = librosa.load(wave_file, sr=None, mono=True, offset=offset, duration=dur)
+            audio, fs = librosa.load(wave_file, mono=True, offset=offset, duration=dur)
 
             # for debug and augmentation
             librosa.output.write_wav(file_path, audio, fs)
@@ -210,7 +210,8 @@ def main_ted(args):
     special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     tokenizer = text_encoder(args.unit, special_tokens)
 
-    for cat in ['train', 'dev', 'test']:
+    #for cat in ['train', 'dev', 'test']:
+    for cat in ['dev', 'test']:
         
         logging.info("Process {} data...".format(cat))
         feats, featlen, tokens, tokenlen, audio_path = process_ted(cat, args, tokenizer)
@@ -250,7 +251,7 @@ def main_libri(args):
         if len(audio_path) > _SAMPLE_THRESHOLD:
             featlen = []
             n = len(audio_path) // k + 1
-            loggin.info("Process {} audios...".format(cat))
+            logging.info("Process {} audios...".format(cat))
             for i in range(k):
                 feats, featlen_ = process_audios(audio_path[i*n:(i+1)*n], args)
                 featlen += featlen_
@@ -275,6 +276,10 @@ def main_libri(args):
         texts, audio_path = data_preparation(libri_path)
 
         if cat == 'train' and args.unit == 'subword':
+
+            if not os.path.exists(args.log_dir):
+                os.makedirs(args.log_dir)
+
             # save to log
             with open(args.log_dir+"/train_gt.txt", 'w') as fout:
                 fout.write("\n".join(texts))
@@ -333,4 +338,4 @@ if __name__ == '__main__':
         main_ted(args)
 
     else:
-        loggin.info("Set dataset to 'Librispeech' or 'TEDLIUM'")
+        logging.info("Set dataset to 'Librispeech' or 'TEDLIUM'")
