@@ -180,7 +180,7 @@ class BeamSearch(object):
         """get decoder output"""
         N = len(prev_token_id)
         feed_dict = {
-                    self.h: np.tile(enc_out, (N, 1)),
+                    self.h: np.tile(enc_out, (N, 1, 1)),
                     self.h_len: np.tile(enc_len, N),
                     self.prev_token_id: prev_token_id,
                     self.dec_state_packed: dec_state_packed
