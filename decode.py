@@ -15,14 +15,14 @@ import numpy as np
 import tensorflow as tf
 from las.beam_search import BeamSearch
 from utils.text import text_encoder
-from las.utils import convert_idx_to_string, wer
+from las.utils import convert_idx_to_string, wer, edit_distance
 from las.arguments import parse_args
 from las.las import Listener, Speller, LAS  # load las
 from data_loader import batch_gen
 from train_lm import load_vocab           
 from lang.char_rnn_model import *           # load language model
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'    # set your decive number
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'    # set your decive number
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 _DECODING_THRESHOLD = 280 # The threshold for long utterance. If > this threshold, split it into two sub utterances for better performance.
@@ -41,7 +41,7 @@ def load_lm(init_dir, model_path):
         lm = CharRNN(is_training=False, use_batch=True, **params)
     return lm
 
-def restore_lm(save_path):
+def restore_lm(sess, save_path):
     with tf.name_scope('evaluation'):
         var_all = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, '')
         var_list = [i[0] for i in tf.train.list_variables(save_path)]
@@ -109,16 +109,16 @@ ckpt = bs.restore_las(sess, args.save_dir, args.restore_epoch)
 logging.info("LAS restored: {}".format(ckpt))
 
 if args.apply_lm:
-    bs.restore_lm(sess, model_path)
+    restore_lm(sess, model_path)
     logging.info("RNNLM restored: {}".format(model_path))
-else:
-    var_lm = {}
 
 # sort by length
 sorted_id = np.argsort(dev_tokenlen)
 dev_feats, dev_featlen, dev_tokens = \
             dev_feats[sorted_id], dev_featlen[sorted_id], dev_tokens[sorted_id]
-res = []
+
+error = 0
+N = 0
 count = 0
 total_utt = len(dev_feats)
 logging.info("Decoding...")
@@ -137,11 +137,13 @@ for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_tokens):
         hyp = convert_idx_to_string(beam_states[-1].token_ids[1:], id_to_token, args.unit)
 
     ref = convert_idx_to_string(y, id_to_token, args.unit)
-    res.append(wer(ref.split(" "), hyp.split(" ")))
-    logging.info("Utt {}/{}, WER: {}".format(count, total_utt, res[-1]))
+    dist, n  = edit_distance(ref.split(" "), hyp.split(" "))
+    error += dist
+    N += n
+    logging.info("Utt {}/{}, WER: {}".format(count, total_utt, dist/n))
     count += 1
     if args.verbose > 0:
         logging.info("REF | {}".format(ref))
         logging.info("HYP | {}\n".format(hyp))
 
-logging.info("Dev WER: {}".format(np.mean(res)))
+logging.info("Dev WER: {}".format(error/N))

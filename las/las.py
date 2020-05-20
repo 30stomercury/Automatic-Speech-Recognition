@@ -142,7 +142,7 @@ class Speller:
 
 class LAS:
 
-    def __init__(self, args, listener, speller, id_to_token):
+    def __init__(self, args, Listener, Speller, id_to_token):
         '''Consturct Listen attend ande spell objects.
         Args:
             args: Include model/train/inference parameters that are packed in arguments.py
