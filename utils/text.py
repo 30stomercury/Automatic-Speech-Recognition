@@ -91,7 +91,7 @@ class text_encoder:
             path: path of training corpus.
         """
         try:
-            tokenizer = CharBPETokenizer(vocab_file=path+"bpe-vocab.json", merges_file=path+"bpe-merges.txt")
+            tokenizer = CharBPETokenizer(vocab_file=path+"/bpe-vocab.json", merges_file=path+"/bpe-merges.txt")
         except:
             tokenizer = CharBPETokenizer()
             tokenizer.train(
