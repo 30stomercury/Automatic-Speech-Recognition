@@ -20,6 +20,24 @@ def lookup_dicts(special_tokens):
 
     return token_to_id, id_to_token
 
+
+def train_subword_tokenizer(size, special_tokens, path):
+    """Train subword tokenizers for subword encoding
+    ref: https://github.com/huggingface/tokenizers
+
+    Args:
+        path: path of training corpus.
+    """
+    tokenizer = CharBPETokenizer()
+    tokenizer.train(
+        [path+"/corpus.txt"],
+        vocab_size=size,
+        min_frequency=2,
+        show_progress=True,
+        special_tokens=special_tokens[:3]+["<unk>"],
+    )
+    tokenizer.save(path, "bpe")
+
 class text_encoder:
     "char tokenizarion and subword tokenization" 
     def __init__(self, unit, special_tokens):
@@ -40,6 +58,7 @@ class text_encoder:
 
         # utilize "tokenizers" library
         elif self.unit == "subword":
+            self.subword_tokenizer = CharBPETokenizer(vocab_file="subword/bpe-vocab.json", merges_file="subword/bpe-merges.txt")
             self.encode = self._encode_subwords
             self.id_to_token = self._id_to_subword()
         else:
@@ -74,32 +93,11 @@ class text_encoder:
         """
         tokens = self.subword_tokenizer.encode(sentence).ids
         if with_eos:
-            tokens += self.subword_tokenizer.encode("<EOS>").ids
+            tokens += [2] # 2 is the id of <EOS> token
         return tokens
 
     def _id_to_subword(self):
         id2subword = {}
         for i in range(self.get_vocab_size()):
-            id2subword[self.subword_tokenizer.id_to_token(i)] = i
+            id2subword[i] = self.subword_tokenizer.id_to_token(i)
         return id2subword
-
-    def train_subword_tokenizer(self, path):
-        """Train subword tokenizers for subword encoding
-        ref: https://github.com/huggingface/tokenizers
-
-        Args:
-            path: path of training corpus.
-        """
-        try:
-            tokenizer = CharBPETokenizer(vocab_file=path+"/bpe-vocab.json", merges_file=path+"/bpe-merges.txt")
-        except:
-            tokenizer = CharBPETokenizer()
-            tokenizer.train(
-                [path+"/train_gt.txt"],
-                vocab_size=500,
-                min_frequency=2,
-                show_progress=True,
-                special_tokens=self.special_tokens[:3]+["<unk>"],
-            )
-            tokenizer.save(path, "bpe")
-        self.subword_tokenizer = tokenizer

@@ -150,12 +150,6 @@ def process_ted(cat, args, tokenizer):
             offsets.append(start)
             durs.append(end - start)
 
-    # save to log
-    if cat == "train" and args.unit == "subword":
-        with open(args.log_dir+"/train_gt.txt", 'w') as fout:
-            fout.write("\n".join(train_texts))
-        tokenizer.train_subword_tokenizer(args.log_dir)
-
     audio_path = []
     wav_path = 'data/TEDLIUM_release1/{}_wav'.format(cat)
     if not os.path.exists(wav_path):
@@ -210,8 +204,7 @@ def main_ted(args):
     special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     tokenizer = text_encoder(args.unit, special_tokens)
 
-    #for cat in ['train', 'dev', 'test']:
-    for cat in ['dev', 'test']:
+    for cat in ['train', 'dev', 'test']:
         
         logging.info("Process {} data...".format(cat))
         feats, featlen, tokens, tokenlen, audio_path = process_ted(cat, args, tokenizer)
@@ -274,17 +267,6 @@ def main_libri(args):
         # prepare data
         libri_path = path[index]
         texts, audio_path = data_preparation(libri_path)
-
-        if cat == 'train' and args.unit == 'subword':
-
-            if not os.path.exists(args.log_dir):
-                os.makedirs(args.log_dir)
-
-            # save to log
-            with open(args.log_dir+"/train_gt.txt", 'w') as fout:
-                fout.write("\n".join(texts))
-            # train BPE
-            tokenizer.train_subword_tokenizer(args.log_dir)
 
         logging.info("Process {} texts...".format(cat))
         if not os.path.exists(args.feat_dir):
