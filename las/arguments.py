@@ -20,7 +20,7 @@ def parse_args():
                         help='Dataset: LibriSpeech or TEDLIUM.')
     parser.add_argument('--unit', 
                         type=str, 
-                        default='char', 
+                        default='subword', 
                         help='Encoding unit for texts processing.')
     parser.add_argument('--sample_rate', 
                         type=int, 
@@ -48,7 +48,7 @@ def parse_args():
                         help='Apply cmvn or not.')
     parser.add_argument('--augmentation', 
                         type=str2bool, 
-                        default=True, 
+                        default=False, 
                         help='Apply data augmentation or not.')
     parser.add_argument('--split', 
                         type=str, 
@@ -135,6 +135,18 @@ def parse_args():
                         type=int,
                         default=400,
                         help='Max length of char sequences in training.')
+    parser.add_argument('--warmup_step',
+                        type=int,
+                        default=500000,
+                        help='Warmup step while training. During warmup step, teacher forcing rate is set to 1.')
+    parser.add_argument('--max_step',
+                        type=int,
+                        default=500000,
+                        help='Max step in scheduled sampling.')
+    parser.add_argument('--min_rate',
+                        type=float,
+                        default=0.7,
+                        help='Max step in scheduled sampling.')
     parser.add_argument('--teacher_forcing_rate',
                         type=float,
                         default=0.9,
@@ -163,11 +175,11 @@ def parse_args():
                         help='')
     parser.add_argument('--dev_data_dir',
                         type=str,
-                        default='./data/LibriSpeech/LibriSpeech_dev/dev-clean',
+                        default='./data/LibriSpeech-100/LibriSpeech_dev/dev-clean',
                         help='')
     parser.add_argument('--test_data_dir',
                         type=str,
-                        default='./data/LibriSpeech/LibriSpeech_test/test-clean',
+                        default='./data/LibriSpeech-100/LibriSpeech_test/test-clean',
                         help='')
     parser.add_argument('--feat_dir', 
                         type=str, 

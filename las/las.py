@@ -36,13 +36,15 @@ class Speller:
             init_t = tf.constant(0, dtype=tf.int32)
             init_output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
             init_alphas = tf.zeros([tf.shape(enc_out)[0], 1, tf.shape(enc_out)[1]])
+            tf_rate = self._scheduled_sampling()
 
             # define loop
             def iteration(t, rnn_state, prev_char, output, alphas):
                 cur_char, rnn_state, alphas_ = \
                         self.decode(enc_out, enc_len, rnn_state, prev_char, is_training)
                 if is_training:
-                    condition = self.args.teacher_forcing_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+                    condition = tf_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+
                     prev_char = tf.cond(condition,
                                         lambda: self._look_up(teacher[:, t]),           # => teacher forcing
                                         lambda: self._sample_char(cur_char))            # => or you can use argmax
@@ -116,6 +118,14 @@ class Speller:
 
         return self._look_up(sampled_char)
 
+    def _scheduled_sampling(self):
+        """Scheduled sampling with linear decay."""
+        step = tf.train.get_global_step()
+        step = tf.cast(step, tf.float32)
+        progress = tf.minimum(
+            (step-self.args.warmup_step) / float(self.args.max_step-self.args.warmup_step), 1.0)
+        return 1.0 - progress * (1.0 -self.args.min_rate)
+
     def _get_hidden_state(self, dec_state):
         if self.args.num_dec_layers > 0:
             return tf.concat(dec_state, -1)
@@ -188,6 +198,7 @@ class LAS:
             loss = att_loss
         global_step = tf.train.get_or_create_global_step()
         optimizer = tf.train.AdamOptimizer(self.args.lr)
+
         # gradient clipping
         if self.args.grad_clip > 0:
             grad, variables = zip(*optimizer.compute_gradients(loss))
