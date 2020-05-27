@@ -14,7 +14,7 @@ import joblib
 from tqdm import tqdm
 import numpy as np
 import tensorflow as tf
-from las.utils import convert_idx_to_string, wer
+from las.utils import convert_idx_to_string, wer, edit_distance
 from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
 from data_loader import batch_gen
@@ -118,10 +118,13 @@ with open(args.log_dir+"/test_gt.txt", 'w') as fout:
     fout.write("\n".join(texts_gt))
 
 # evaluate WER
-res = []
+error = 0
+N = 0
 for i in range(len(texts_gt)):
     ref = texts_gt[i]
     hyp = texts_pred[i]
-    res.append(wer(ref.split(" "), hyp.split(" ")))
+    e, n = edit_distance(ref.split(" "), hyp.split(" "))
+    error += e
+    N += n
 
-logging.info("WER: {}".format(np.mean(res)))
+logging.info("WER: {}".format(error/N)
