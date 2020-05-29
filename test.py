@@ -21,7 +21,7 @@ from data_loader import batch_gen
 from utils.text import text_encoder
 
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'  # set your device id
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'  # set your device id
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -126,5 +126,5 @@ for i in range(len(texts_gt)):
     e, n = edit_distance(ref.split(" "), hyp.split(" "))
     error += e
     N += n
-
-logging.info("WER: {}".format(error/N)
+   
+logging.info("WER: {}".format(error/N))
