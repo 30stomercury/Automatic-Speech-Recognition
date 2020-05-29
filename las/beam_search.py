@@ -41,7 +41,7 @@ class BeamSearch(object):
         self.start_id = token_to_id['<SOS>']
         self.end_id = token_to_id['<EOS>']
 
-        if args.unit != "char":
+        if args.unit != "char" and args.unit != "subword":
           raise ValueError('Other units are currently not support!')
 
         # build graph

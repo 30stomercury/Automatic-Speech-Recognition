@@ -61,6 +61,7 @@ class text_encoder:
             self.subword_tokenizer = CharBPETokenizer(vocab_file="subword/bpe-vocab.json", merges_file="subword/bpe-merges.txt")
             self.encode = self._encode_subwords
             self.id_to_token = self._id_to_subword()
+            self.token_to_id = self._subword_to_id()
         else:
             raise Exception('Unit not support!') 
 
@@ -101,3 +102,9 @@ class text_encoder:
         for i in range(self.get_vocab_size()):
             id2subword[i] = self.subword_tokenizer.id_to_token(i)
         return id2subword
+
+    def _subword_to_id(self):
+        subword2id = {}
+        for i in range(self.get_vocab_size()):
+            subword2id[self.subword_tokenizer.id_to_token(i)] = i
+        return subword2id
