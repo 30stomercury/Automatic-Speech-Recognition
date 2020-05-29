@@ -36,7 +36,11 @@ class Speller:
             init_t = tf.constant(0, dtype=tf.int32)
             init_output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
             init_alphas = tf.zeros([tf.shape(enc_out)[0], 1, tf.shape(enc_out)[1]])
-            tf_rate = self._scheduled_sampling()
+
+            if is_training:
+                tf_rate = self._scheduled_sampling()
+            else:
+                tf_rate = 0
 
             # define loop
             def iteration(t, rnn_state, prev_char, output, alphas):
