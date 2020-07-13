@@ -225,7 +225,11 @@ class LAS:
 
         summaries = tf.summary.merge_all()
 
-        return loss, train_op, global_step, logits, alphas, summaries
+        # sample rate
+        sample_rate = self.speller._scheduled_sampling()
+
+
+        return loss, train_op, global_step, logits, alphas, summaries, sample_rate
 
     def inference(self, xs):
         audio, audiolen = xs
