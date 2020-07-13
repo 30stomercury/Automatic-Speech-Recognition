@@ -122,7 +122,7 @@ class BeamSearch(object):
                                              None))
 
             beam_set = []                 
-            norm = True if dec_step < 90 else False
+            norm = True 
             # sort by log prob
             topk_beam_state = self._select_best_k(beam_set_bank, norm)
             for b in topk_beam_state:
