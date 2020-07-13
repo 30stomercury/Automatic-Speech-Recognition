@@ -28,6 +28,8 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=T
                 window = 4000
                 for i in range(len(sort_idx) // window):
                     sort_idx[i*window:(i+1)*window] = sort_idx[i*window:(i+1)*window][np.random.permutation(window)]
+                if np.random.uniform(1, 0, 1) > 0.5:
+                    sort_idx = sort_idx[::-1]
             feats_, featlen_ = feats[sort_idx], featlen[sort_idx]
             chars_, charlen_ = chars[sort_idx], charlen[sort_idx]
             
@@ -60,9 +62,7 @@ def batch_gen(feats, chars, featlen, charlen, batch_size, feat_dim,  bucketing=T
                                              output_shapes=shapes)
     dataset.batch(batch_size).prefetch(1)
     if is_training:
-        dataset = dataset.shuffle(batch_size*64)
+        dataset = dataset.shuffle(batch_size*32)
     dataset = dataset.repeat() 
     iter = dataset.make_initializable_iterator()
     return iter, num_batches
-
-
