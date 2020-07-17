@@ -22,10 +22,10 @@ from data_loader import batch_gen
 from train_lm import load_vocab           
 from lang.char_rnn_model import *           # load language model
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'    # set your decive number
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'    # set your decive number
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-_DECODING_THRESHOLD = 280 # The threshold for long utterance. If > this threshold, split it into two sub utterances for better performance.
+_DECODING_THRESHOLD = 160 # The threshold for long utterance. If > this threshold, split it into two sub utterances for better performance.
 
 def load_lm(init_dir, model_path):
     with open(os.path.join(init_dir, 'result.json'), 'r') as f:
@@ -125,9 +125,11 @@ logging.info("Decoding...")
 for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_tokens):
     if args.convert_rate*audiolen > _DECODING_THRESHOLD:
         # split into sub utterances for decoding
-        m = audiolen // 2
+        l = int(args.convert_rate*audiolen) // 100
+        m = audiolen // l
+        print(l, m)
         hyp = ""
-        for i in range(2):
+        for i in range(l):
             xs = (np.expand_dims(audio[i*m:(i+1)*m], 0), np.expand_dims(m, 0))
             beam_states = bs.decode(sess, xs)
             hyp += convert_idx_to_string(beam_states[-1].token_ids[1:], id_to_token, args.unit)
