@@ -68,7 +68,7 @@ def process_audios(audio_path, args):
     for p in tqdm(audio_path):
 
         audio, fs = librosa.load(p, sr=None)
-
+        
         if feat_type == 'mfcc':
             assert feat_dim == 39, "13+delta+accelerate"
             mfcc = speechpy.feature.mfcc(audio, 
