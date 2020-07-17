@@ -1,4 +1,6 @@
+
 import tensorflow as tf
+import numpy as np
 
 def mask(original_len, padded_len):
     """Creating mask for sequences with different lengths in a batch.
@@ -23,30 +25,45 @@ def mask(original_len, padded_len):
     mask = y <= original_len
     return tf.cast(mask, tf.float32)
 
-def attention(h, char, hidden_size, embedding_size, seq_len):
-    """Bahdanau attention"""
+def label_smoothing(inputs, epsilon=0.01):
+    """label smoothing
+    Reference: https://github.com/Kyubyong/transformer/blob/master/tf1.2_legacy/modules.py
+    """
+    K = inputs.get_shape().as_list()[-1] 
+    return ((1-epsilon) * inputs) + (epsilon / K)
+
+def attention(h, state, h_dim, s_dim, attention_size, seq_len):
+    """Bahdanau attention
+    args:
+        h: (B, T, enc_units*2), encoder output.
+        state: (B, dec_units), previous decoder hidden state.
+        h_dim: encoder units.
+        s_dim: decoder units.
+        seq_len: timesteps of sequences.
+    """
+    
     with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
-        attention_size = 16
         T = tf.shape(h)[1]
-        char_tile = tf.tile(tf.expand_dims(char, 1), [1, T, 1])
+        # tiling to (B, T, dec_units)
+        state_ = tf.expand_dims(state, 1)
+        h.set_shape([None, None, h_dim])
+        state_.set_shape([None, 1, s_dim])
         # Trainable parameters
-        W_h = tf.Variable(tf.random_normal([hidden_size, attention_size], stddev=0.1))
-        W_c = tf.Variable(tf.random_normal([embedding_size, attention_size], stddev=0.1))
-        b = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
-        u = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
+        with tf.control_dependencies(None):
+            u = tf.Variable(tf.random_uniform([attention_size], minval=-1, maxval=1, dtype=tf.float32))
         v = tf.nn.tanh(
-                tf.tensordot(h, W_h, axes=1) + tf.tensordot(char_tile, W_c, axes=1) + b)
+                tf.layers.dense(h, attention_size, use_bias=False) + tf.layers.dense(state_, attention_size, use_bias=False))
         vu = tf.tensordot(v, u, axes=1)
         # mask attention weights
         mask_att = mask(seq_len, T)   # (B, T)
         paddings = tf.ones_like(mask_att)*(-1e8)
         vu = tf.where(tf.equal(mask_att, 0), paddings, vu)      
         alphas = tf.nn.softmax(vu)                             
-        # Output reduced with context vector: (B, T)
+        # Output reduced with context vector: (B, hidden_size)
         out = tf.reduce_sum(h * tf.expand_dims(alphas, -1), 1)
     return out, alphas
 
-def lstm(inputs, num_layers, cell_units, keep_proba, is_training):
+def lstm(inputs, num_layers, cell_units, dropout_rate, is_training):
     def rnn_cell():
         # lstm cell
         return tf.contrib.rnn.BasicRNNCell(cell_units)
@@ -57,6 +74,7 @@ def lstm(inputs, num_layers, cell_units, keep_proba, is_training):
         cell = rnn_cell()
     # when training, add dropout to regularize.
     if is_training == True:
+        keep_proba = 1 - dropout_rate
         cell = tf.nn.rnn_cell.DropoutWrapper(cell,
                                              input_keep_prob=keep_proba)
     else:
@@ -68,7 +86,7 @@ def lstm(inputs, num_layers, cell_units, keep_proba, is_training):
                                    dtype=tf.float32) 
     return outputs, states
 
-def blstm(inputs, cell_units, keep_proba, is_training):
+def blstm(inputs, cell_units, dropout_rate, is_training):
     def rnn_cell():
         # lstm cell
         return tf.contrib.rnn.BasicRNNCell(cell_units)
@@ -78,6 +96,7 @@ def blstm(inputs, cell_units, keep_proba, is_training):
     bw_cell = rnn_cell()
     # when training, add dropout to regularize.
     if is_training == True:
+        keep_proba = 1 - dropout_rate
         fw_cell = tf.nn.rnn_cell.DropoutWrapper(fw_cell,
                                                 input_keep_prob=keep_proba)
         bw_cell = tf.nn.rnn_cell.DropoutWrapper(bw_cell,
@@ -95,18 +114,23 @@ def blstm(inputs, cell_units, keep_proba, is_training):
                                                       time_major=False)
     return outputs, states
 
-def pblstm(inputs, audio_len, num_layers, cell_units, keep_proba, is_training):
+def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training):
     batch_size = tf.shape(inputs)[0]
+    enc_dim = cell_units*2
     # a BLSTM layer
     with tf.variable_scope('blstm'):
-        rnn_out, _ = blstm(inputs, cell_units, keep_proba, is_training)
+        rnn_out, _ = blstm(inputs, cell_units, dropout_rate, is_training)
         rnn_out = tf.concat(rnn_out, -1)        
-        cell_units = cell_units*2
+        rnn_out = tf.layers.dense(                                                                                                                                                                     
+                            rnn_out,
+                            enc_dim, use_bias=True, 
+                            activation=tf.nn.tanh)
+
     # Pyramid BLSTM layers
     for l in range(num_layers):
         with tf.variable_scope('pyramid_blstm_{}'.format(l)):
             rnn_out, states = blstm(
-                    rnn_out, cell_units, keep_proba, is_training)
+                    rnn_out, cell_units, dropout_rate, is_training)
             rnn_out = tf.concat(rnn_out, -1)        
             # Eq (5) in Listen, Attend and Spell
             T = tf.shape(rnn_out)[1]
@@ -114,31 +138,63 @@ def pblstm(inputs, audio_len, num_layers, cell_units, keep_proba, is_training):
             even_new = padded_out[:, ::2, :]
             odd_new = padded_out[:, 1::2, :]
             rnn_out = tf.concat([even_new, odd_new], -1)        
-            cell_units = cell_units*4
-            rnn_out = tf.reshape(rnn_out, [batch_size, -1, cell_units])
+            rnn_out = tf.reshape(rnn_out, [batch_size, -1, cell_units*4])
+            rnn_out = tf.layers.dense( 
+                                rnn_out,
+                                enc_dim, 
+                                use_bias=True,
+                                activation=tf.nn.tanh)
             audio_len = (audio_len + audio_len % 2) / 2
     return rnn_out, states, audio_len
 
-def convert_idx_to_token_tensor(inputs, id2char):
+def convert_idx_to_token_tensor(inputs, id_to_token, unit="char"):
     """Converts int32 tensor to string tensor.
     Reference:
         https://github.com/Kyubyong/transformer/blob/master/utils.py
     """
     def my_func(inputs):
-        return "".join(id2char[elem] for elem in inputs)
+        sent = "".join(id_to_token[elem] for elem in inputs)
+        sent = sent.split("<EOS>")[0].strip()
+        if unit == "char":
+            # replace <SPACE> with " "
+            sent = sent.replace("<SPACE>", " ") 
+        elif unit == "subword":
+            # replace the suffix </w> with " "
+            sent = sent.replace("</w>", " ") 
+        return " ".join(sent.split())
 
     return tf.py_func(my_func, [inputs], tf.string)
 
-def get_texts(y_hat, sess, num_batches, id2char):
-    output_id = []
-    output_char = []
-    for _ in range(num_batches):
-        pred = sess.run(y_hat)
-        output_id += pred.tolist()
-    for h in output_id:
-        sent = "".join(id2char[idx] for idx in h)
-        sent = sent.split("<EOS>")[0].strip()
-        sent = sent.replace("<SPACE>", " ") 
-        output_char.append(" ".join(sent.split()))
+def convert_idx_to_string(inputs, id_to_token, unit="char"):
+    """Converts int32 ndarray to string. (char or subword tokens)"""
 
-    return output_char
+    sent =  "".join(id_to_token[elem] for elem in inputs)
+    sent = sent.split("<EOS>")[0].strip()
+    if unit == "char":
+        # replace <SPACE> with " "
+        sent = sent.replace("<SPACE>", " ") 
+    elif unit == "subword":
+        # replace the suffix </w> with " "
+        sent = sent.replace("</w>", " ") 
+    return " ".join(sent.split())
+
+def wer(s1,s2):
+    
+    e, length = edit_distance(s1, s2)
+    
+    return e / length
+
+def edit_distance(s1,s2):
+
+    d = np.zeros([len(s1)+1,len(s2)+1])
+    d[:,0] = np.arange(len(s1)+1)
+    d[0,:] = np.arange(len(s2)+1)
+
+    for j in range(1,len(s2)+1):
+        for i in range(1,len(s1)+1):
+            if s1[i-1] == s2[j-1]:
+                d[i,j] = d[i-1,j-1]
+            else:
+                d[i,j] = min(d[i-1,j]+1, d[i,j-1]+1, d[i-1,j-1]+1)
+
+    return d[-1,-1], len(s1)
