@@ -261,17 +261,22 @@ def main_libri(args):
     # texts
     special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
     tokenizer = text_encoder(args.unit, special_tokens)
-    
-    path = [args.train_data_dir, args.dev_data_dir, args.test_data_dir]
-    for index, cat in enumerate(['train', 'dev', 'test']):
+
+    path = [('train', args.train_100hr_corpus_dir), ('train', args.train_360hr_corpus_dir), 
+            ('train', args.train_500hr_corpus_dir),
+            ('dev',args.dev_data_dir), ('test', args.test_data_dir)]
+
+    for element in path:
+                     
         # prepare data
-        libri_path = path[index]
+        cat = element[0]
+        libri_path = element[1]
         texts, audio_path = data_preparation(libri_path)
 
-        logging.info("Process {} texts...".format(cat))
+        logging.info("Process {} texts...".format(libri_path))
         if not os.path.exists(args.feat_dir):
             os.makedirs(args.feat_dir)
-
+        
         tokens, tokenlen = process_texts(texts, tokenizer)
 
         # save text features
