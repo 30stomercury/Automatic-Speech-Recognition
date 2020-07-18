@@ -168,10 +168,18 @@ def parse_args():
                         type=float, 
                         default=0.5, 
                         help='Weighting of recoring with language model.')
-    # save dir
-    parser.add_argument('--train_data_dir',
+    # dir
+    parser.add_argument('--train_100hr_corpus_dir',
                         type=str,
                         default='./data/LibriSpeech/LibriSpeech_train/train-clean-100',
+                        help='')
+    parser.add_argument('--train_360hr_corpus_dir',
+                        type=str,
+                        default='./data/LibriSpeech/LibriSpeech_train/train-clean-360',
+                        help='')
+    parser.add_argument('--train_500hr_corpus_dir',
+                        type=str,
+                        default='./data/LibriSpeech/LibriSpeech_train/train-other-500',
                         help='')
     parser.add_argument('--dev_data_dir',
                         type=str,
