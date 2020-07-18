@@ -10,7 +10,7 @@ else
     mkdir data
 fi
 
-for target in train-clean-100.tar.gz train-clean-360.tar.gz train-clean-500.tar.gz
+for target in train-clean-100.tar.gz train-clean-360.tar.gz train-other-500.tar.gz
 do
     echo "Downloading $target"
     wget $SOURCE/$target
