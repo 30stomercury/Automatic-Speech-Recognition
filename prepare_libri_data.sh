@@ -11,6 +11,7 @@ else
 fi
 
 for target in train-clean-100.tar.gz train-clean-360.tar.gz train-clean-500.tar.gz
+do
     echo "Downloading $target"
     wget $SOURCE/$target
     echo "Extracting..."
@@ -19,6 +20,7 @@ for target in train-clean-100.tar.gz train-clean-360.tar.gz train-clean-500.tar.
     hr=${target:12:3}
     mkdir data/$hr
     mv LibriSpeech data/$hr/LibriSpeech_train
+done
 
 echo "Downloading LibriSpeech test/dev set"
 
