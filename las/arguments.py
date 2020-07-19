@@ -171,39 +171,43 @@ def parse_args():
     # dir
     parser.add_argument('--train_100hr_corpus_dir',
                         type=str,
-                        default='./data/LibriSpeech/LibriSpeech_train/train-clean-100',
+                        default='data/LibriSpeech/LibriSpeech_train/train-clean-100',
                         help='')
     parser.add_argument('--train_360hr_corpus_dir',
                         type=str,
-                        default='./data/LibriSpeech/LibriSpeech_train/train-clean-360',
+                        default='data/LibriSpeech/LibriSpeech_train/train-clean-360',
                         help='')
     parser.add_argument('--train_500hr_corpus_dir',
                         type=str,
-                        default='./data/LibriSpeech/LibriSpeech_train/train-other-500',
+                        default='data/LibriSpeech/LibriSpeech_train/train-other-500',
                         help='')
     parser.add_argument('--dev_data_dir',
                         type=str,
-                        default='./data/LibriSpeech-100/LibriSpeech_dev/dev-clean',
+                        default='data/LibriSpeech-100/LibriSpeech_dev/dev-clean',
                         help='')
     parser.add_argument('--test_data_dir',
                         type=str,
-                        default='./data/LibriSpeech-100/LibriSpeech_test/test-clean',
+                        default='data/LibriSpeech-100/LibriSpeech_test/test-clean',
                         help='')
     parser.add_argument('--feat_dir', 
                         type=str, 
-                        default='./data/LibriSpeech/features', 
+                        default='data/LibriSpeech/features', 
                         help='Path to save features.')
+    parser.add_argument('--subword_dir', 
+                        type=str, 
+                        default='subword/', 
+                        help='Path to vocab files of BPE subword unit.')
     parser.add_argument('--log_dir',
                         type=str,
-                        default='./log',
+                        default='log/',
                         help='Save log file..')
     parser.add_argument('--save_dir',
                         type=str,
-                        default='./model/las',
+                        default='model/las/',
                         help='Save trained model.')
     parser.add_argument('--summary_dir',
                         type=str,
-                        default='./summary',
+                        default='summary/',
                         help='Save summary.')
 
     args = parser.parse_args()
