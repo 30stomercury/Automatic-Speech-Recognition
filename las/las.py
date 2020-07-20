@@ -7,10 +7,55 @@ class Listener:
     def __init__(self, args):
         self.args = args
 
-    def __call__(self, inputs, audiolen, is_training=True):
+    def __call__(self, inputs, audiolen, encoder= 'cnn', is_training=True):
         with tf.variable_scope("Listener", reuse=tf.AUTO_REUSE):
-            enc_out, enc_state, enc_len = pblstm(
-                inputs, audiolen, self.args.num_enc_layers, self.args.enc_units, self.args.dropout_rate, is_training)
+            if encoder == 'pblstm':
+                enc_out, enc_state, enc_len = pblstm(inputs, 
+                                                     audiolen, 
+                                                     self.args.num_enc_layers, 
+                                                     self.args.enc_units, 
+                                                     self.args.dropout_rate, is_training)
+            elif encoder == 'cnn':
+                #   NETWORK:
+                #   cnn/batch-norm/relu ->
+                #   cnn/batch-norm/relu ->
+                #   bidirectional lstm ->
+                #   projection/batch-norm/relu ->
+                #   bidirectional lstm ->
+                #   projection/batch-norm/relu ->
+                #   bidirectional lstm
+
+                # cnn layers
+                feat_dim = self.args.feat_dim
+                num_channel = 32
+                conv_out = inputs 
+                for i in range(2):
+                    # time & feat_dim reduction
+                    feat_dim = (feat_dim + feat_dim % 2) / 2
+                    audiolen = (audiolen + audiolen % 2) / 2
+
+                    #output_shape = [None, audiolen, feat_dim, num_channel]
+                    conv_out = conv2d(conv_out, 
+                                      num_channel, 
+                                      name="conv2d_{}".format(i), is_training=is_training)
+
+                # reshape to [B, L/4, feat_dim/4 * 32]
+                shape = tf.shape(conv_out)
+                enc_out = tf.reshape(conv_out, [shape[0], -1, int(feat_dim*num_channel)])
+
+                # blstm layers
+                for i in range(self.args.num_enc_layers):
+                    with tf.variable_scope('blstm_{}'.format(i)):
+                        enc_out, enc_state = blstm(enc_out, self.args.enc_units, self.args.dropout_rate, is_training)
+                        enc_out = tf.concat(enc_out, -1)        
+                        enc_out = tf.layers.dense(
+                                         enc_out,
+                                         self.args.enc_units, 
+                                         use_bias=True)
+                        #enc_out = tf.nn.relu(bn(enc_out, is_training))
+                        enc_out = tf.nn.relu(enc_out)
+
+                enc_len = audiolen
 
             return enc_out, enc_state, enc_len
 
@@ -18,7 +63,7 @@ class Speller:
 
     def __init__(self, args):
         self.args = args
-        self.hidden_size = self.args.enc_units*2 # => output dimension of plstm h
+        self.hidden_size = self.args.enc_units  # => output dimension of encoder h
         self._build_decoder_cell()
         self._build_char_embeddings()
 
@@ -38,7 +83,7 @@ class Speller:
             init_alphas = tf.zeros([tf.shape(enc_out)[0], 1, tf.shape(enc_out)[1]])
 
             if is_training:
-                tf_rate = self._scheduled_sampling()
+                tf_rate = 1#self._scheduled_sampling()
             else:
                 tf_rate = 0
 
@@ -124,11 +169,11 @@ class Speller:
 
     def _scheduled_sampling(self):
         """Scheduled sampling with linear decay."""
-        step = tf.train.get_global_step()
+        step = tf.train.get_or_create_global_step()
         step = tf.cast(step, tf.float32)
         progress = tf.minimum(
             (step-self.args.warmup_step) / float(self.args.max_step-self.args.warmup_step), 1.0)
-        return 1.0 - progress * (1.0 -self.args.min_rate)
+        return tf.minimum(1.0, 1.0 - progress * (1.0 -self.args.min_rate))
 
     def _get_hidden_state(self, dec_state):
         if self.args.num_dec_layers > 0:
@@ -176,17 +221,19 @@ class LAS:
                 - audiolen: (B,), original feature length.
             ys: 
                 - y:        (B, T2), T2: output time steps.
-                - charlen:  (B,), original character length.
+                - tokenlen:  (B,), original character length.
         Returns: 
             loss
             train_op
             global_step
             summaries
         '''
+
         audio, audiolen = xs
-        y, charlen = ys
+        y, tokenlen = ys
+
         # encoder decoder network
-        dec_steps = tf.shape(y)[1] # => time steps in this batch
+        dec_steps = tf.reduce_max(tokenlen) # => time steps in this batch
         h, enc_state, enc_len = self.listener(audio, audiolen)
         logits, ctc_logits, alphas = self.speller(h, enc_len, dec_steps, y)
 
@@ -194,27 +241,37 @@ class LAS:
         attention_images = alphas*255
 
         # compute loss
-        att_loss = self._get_loss(logits, y, charlen)
+        att_loss = self._get_loss(logits, y)
+
         if self.args.ctc:
             ctc_loss = self._get_ctc_loss(ctc_logits, y, enc_len)
             loss = self.args.ctc_weight*ctc_loss + att_loss
         else:
             loss = att_loss
+
         global_step = tf.train.get_or_create_global_step()
+        
+        # update moving_mean & moving_variance 
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
         optimizer = tf.train.AdamOptimizer(self.args.lr)
 
         # gradient clipping
-        if self.args.grad_clip > 0:
-            grad, variables = zip(*optimizer.compute_gradients(loss))
-            grad, _ = tf.clip_by_global_norm(grad, self.args.grad_clip)
-            train_op = optimizer.apply_gradients(zip(grad, variables), global_step=global_step)
-        else:
-            train_op = optimizer.minimize(loss, global_step=global_step)
+        grad, variables = zip(*optimizer.compute_gradients(loss))
+        grad, _ = tf.clip_by_global_norm(grad, self.args.grad_clip)
+
+        with tf.control_dependencies(update_ops):
+            if self.args.grad_clip > 0:
+                    train_op = optimizer.apply_gradients(zip(grad, variables), global_step=global_step)
+            else:
+                train_op = optimizer.minimize(loss, global_step=global_step)
+
         # sample one utterance
         sample = convert_idx_to_token_tensor(
                     tf.argmax(logits, -1)[0], self.id_to_token, self.args.unit)
         ref = convert_idx_to_token_tensor(
                     y[0], self.id_to_token, self.args.unit)
+
         # summary
         tf.summary.scalar("loss", loss)
         tf.summary.scalar("global_step", global_step)
@@ -232,6 +289,7 @@ class LAS:
         return loss, train_op, global_step, logits, alphas, summaries, sample_rate
 
     def inference(self, xs):
+
         audio, audiolen = xs
         # estimate decoding steps
         dec_steps = tf.multiply(self.args.convert_rate, 
@@ -244,11 +302,14 @@ class LAS:
 
         return logits, y_hat
     
-    def _get_loss(self, logits, y, charlen):
+    def _get_loss(self, logits, y):
+        y = tf.slice(y, [0, 0], tf.shape(logits)[:2]) # crop padding
+
         if self.args.label_smoothing:
             y_ = label_smoothing(tf.one_hot(y, depth=self.args.vocab_size))
         else:
             y_ = tf.one_hot(y, self.args.vocab_size)
+
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_)
         mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
         loss = tf.reduce_sum(
