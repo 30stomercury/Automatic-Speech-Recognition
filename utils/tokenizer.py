@@ -43,7 +43,7 @@ def train_subword_tokenizer(size, special_tokens, path):
 class Subword_Encoder:
     "Subword tokenization" 
 
-    def __init__(self, paath='subword/'):
+    def __init__(self, path='subword/'):
         """ 
         Args:
             path: str, a path to vocab file.
