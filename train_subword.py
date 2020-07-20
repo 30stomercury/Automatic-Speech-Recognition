@@ -5,7 +5,7 @@ import os
 
 # argument
 parser = ArgumentParser()
-parser.add_argument('--train_500hr_corpus_dir', default='data/LibriSpeech-500/LibriSpeech/train-other-500', type=str)
+parser.add_argument('--train_500hr_corpus_dir', default='../ASR_char/data/LibriSpeech-500/LibriSpeech/train-other-500', type=str)
 parser.add_argument('--train_360hr_corpus_dir', default='data/LibriSpeech-100/LibriSpeech/train-other-100', type=str)
 parser.add_argument('--train_100hr_corpus_dir', default='data/LibriSpeech-360/LibriSpeech/train-other-360', type=str)
 parser.add_argument('--save_dir', default='subword/', type=str)
@@ -13,19 +13,19 @@ parser.add_argument('--size', default=500, type=int)
 
 args = parser.parse_args()
 
-subword_dir = args.subword_dir
+save_dir = args.save_dir
 
 def main():
-    if not os.path.exists(subword_dir):
-        os.makedirs(subword_dir)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
     texts_all = []
-    for path in [args.100hr_corpus_dir, args.360hr_corpus_dir, args.500hr_corpus_dir]:
+    for path in [args.train_100hr_corpus_dir, args.train_360hr_corpus_dir, args.train_500hr_corpus_dir]:
         texts, audio_path = data_preparation(path)
         texts_all += texts
 
     # save to subword/
-    with open("subword/corpus.txt", 'w') as fout:
+    with open(save_dir+"/corpus_all.txt", 'w') as fout:
         fout.write("\n".join(texts_all))
     
     special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
