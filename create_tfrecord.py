@@ -1,3 +1,10 @@
+# supress future warning
+import warnings
+warnings.filterwarnings('ignore',category=FutureWarning)
+# supress deprecation
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
 import os 
 os.environ['CUDA_VISIBLE_DEVICES'] = "2"
 import tensorflow as tf
@@ -66,37 +73,11 @@ def create_tfrecords(X, y, filename, num_files=5):
     print("Total records: {}".format(total_count))
 
 
-"""
-unit = 'subword'
-feat_dir = 'data/LibriSpeech-100/features_mfcc/'
-train_feats = joblib.load(feat_dir+"/train_feats.pkl")
-train_tokens = np.load(
-    'data/LibriSpeech-100/features_mfcc_bpe_5k'+"/train_{}s.npy".format(unit), allow_pickle=True)
-train_tokenlen = np.load(
-    'data/LibriSpeech-100/features_mfcc_bpe_5k'+"/train_{}len.npy".format(unit), allow_pickle=True)
-train_featlen = np.load(
-    feat_dir+"/train_featlen.npy", allow_pickle=True)
-
-#train_feats_100 = load_feats(feat_dir, "train")
-train_tokens_bpe_500 = np.load(
-    feat_dir+"/train_{}s.npy".format(unit), allow_pickle=True)
-
-train_tokenlen_bpe_500 = np.load(
-    'data/LibriSpeech-100/features_mfcc'+"/train_{}len.npy".format(unit), allow_pickle=True)
-
-print(sum(train_tokenlen_bpe_500), sum(train_tokenlen))
-
-print(sum(train_featlen > 1710))
-X = train_feats[train_featlen < 1710]
-y = train_tokens[train_featlen < 1710]
-print(len(X), len(y))
-create_tfrecords(X, y, 'data/tfrecord_bpe_5k/train-100', 1)
-"""
 
 # 100h, 360h, 500h
 feat_dir = 'data/LibriSpeech-{}/features_mfcc/'
 token_dir = 'data/LibriSpeech-{}/features_mfcc_bpe_5k/'
-for h in [100]:
+for h in [100, 360, 500]:
     train_feats = load_feats(feat_dir.format(h), "train")
     train_featlen = np.load(
             feat_dir.format(h)+"/train_featlen.npy", allow_pickle=True)
