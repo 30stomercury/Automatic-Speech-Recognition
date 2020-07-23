@@ -58,7 +58,7 @@ def create_tfrecords(X, y, filename, num_files=5):
 
         for feat, token in tqdm(zip(feats[st : ed], tokens[st : ed])):
             
-            # construct 'example' object containing 'feat', 'token' 
+            # construct 'example' object containing 'feat', 'shape', 'token' 
             example = tf.train.Example(features=tf.train.Features(feature={
                 'feat': _float_feature(feat.flatten()),
                 'shape': _int64_feature(feat.shape),
