@@ -9,9 +9,9 @@ from tqdm import tqdm
 import librosa
 import speechpy
 import numpy as np
-
+from utils.tokenizer import Subword_Encoder, Char_Encoder
 from las.arguments import parse_args
-from utils.text import text_encoder
+from utils.tokenizer import Subword_Encoder, Char_Encoder
 from utils.augmentation import speed_augmentation, volume_augmentation
 
 # When number of audios in a set (usually training set) > threshold, divide set into several parts to avoid memory error.
@@ -180,7 +180,7 @@ def process_ted(cat, args, tokenizer):
 
     return feats, featlen, tokens, tokenlen, audio_path
         
-def main_ted(args):
+def main_ted(args, tokenizer):
 
     def save_ted_feats(feats, cat, k):
         """When number of feats > threshold, divide feature 
@@ -200,9 +200,6 @@ def main_ted(args):
     logging.info("Process train/dev features...")
     if not os.path.exists(args.feat_dir):
         os.makedirs(args.feat_dir)
-
-    special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-    tokenizer = text_encoder(args.unit, special_tokens)
 
     for cat in ['train', 'dev', 'test']:
         
@@ -235,7 +232,7 @@ def main_ted(args):
                 np.save(args.feat_dir+"/speed_{}_featlen.npy".format(s), aug_featlen)
                 aug_feats = []
 
-def main_libri(args):
+def main_libri(args, tokenizer):
 
     def process_libri_feats(audio_path, cat, k):
         """When number of feats > threshold, divide feature 
@@ -258,12 +255,10 @@ def main_libri(args):
         np.save(args.feat_dir+"/{}_featlen.npy".format(cat), featlen)
 
 
-    # texts
-    special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-    tokenizer = text_encoder(args.unit, special_tokens)
-
     path = [('train', args.train_100hr_corpus_dir), ('train', args.train_360hr_corpus_dir), 
             ('train', args.train_500hr_corpus_dir),
+            ('dev',args.dev_data_dir), ('test', args.test_data_dir)]
+    path = [('train', args.train_100hr_corpus_dir), 
             ('dev',args.dev_data_dir), ('test', args.test_data_dir)]
 
     for element in path:
@@ -282,9 +277,9 @@ def main_libri(args):
         # save text features
         np.save(args.feat_dir+"/{}_{}s.npy".format(cat, args.unit), tokens)
         np.save(args.feat_dir+"/{}_{}len.npy".format(cat, args.unit), tokenlen)
-
+        
         # audios
-        process_libri_feats(audio_path, cat, 4)
+        #process_libri_feats(audio_path, cat, 4)
         
         # augmentation
         if args.augmentation and cat == 'train':   
@@ -311,6 +306,7 @@ def main_libri(args):
             """
 
 if __name__ == '__main__':
+
     # arguments
     args = parse_args()
 
@@ -318,11 +314,22 @@ if __name__ == '__main__':
     logging.info('Parameters are:\n%s\n', json.dumps(vars(args), sort_keys=False, indent=4))
     print('=' * 60 )
 
+    # Choose unit
+
+    if args.unit == 'char':
+        tokenizer = Char_Encoder()
+
+    elif args.unit == 'subword':
+        tokenizer = Subword_Encoder(args.subword_dir)
+
+
+    # Choose dataset
+
     if args.dataset == 'LibriSpeech':
-        main_libri(args)
+        main_libri(args, tokenizer)
 
     elif args.dataset == 'TEDLIUM':
-        main_ted(args)
+        main_ted(args, tokenizer)
 
     else:
         logging.info("Set dataset to 'Librispeech' or 'TEDLIUM'")
