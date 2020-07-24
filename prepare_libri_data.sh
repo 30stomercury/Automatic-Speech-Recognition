@@ -28,6 +28,8 @@ wget $SOURCE/dev-clean.tar.gz
 wget $SOURCE/test-clean.tar.gz
 
 
+mkdir data/LibriSpeech_eval
+
 tar -xvf dev-clean.tar.gz
 mv LibriSpeech data/LibriSpeech_eval/LibriSpeech_dev
 
