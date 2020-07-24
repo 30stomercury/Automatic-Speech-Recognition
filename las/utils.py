@@ -50,7 +50,7 @@ def attention(h, state, h_dim, s_dim, attention_size, seq_len):
         state_.set_shape([None, 1, s_dim])
         # Trainable parameters
         with tf.control_dependencies(None):
-            u = tf.Variable(tf.random_uniform([attention_size], minval=-1, maxval=1, dtype=tf.float32))
+                    u = tf.Variable(tf.random_uniform([attention_size], minval=-1, maxval=1, dtype=tf.float32))
         v = tf.nn.tanh(
                 tf.layers.dense(h, attention_size, use_bias=False) + tf.layers.dense(state_, attention_size, use_bias=False))
         vu = tf.tensordot(v, u, axes=1)
@@ -147,10 +147,11 @@ def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training)
             audio_len = (audio_len + audio_len % 2) / 2
     return rnn_out, states, audio_len
 
-def conv2d(inputs, output_dim, k_h=3, k_w=3, d_h=2, d_w=2, stddev=0.1, name="conv2d", is_training=True):
+def conv2d(inputs, output_dim, k_h=3, k_w=3, d_h=2, d_w=2, stddev=1, name="conv2d", is_training=True):
     with tf.variable_scope(name) as scope:
-        w = tf.get_variable('w', [k_h, k_w, inputs.get_shape()[-1], output_dim],
-                  initializer=tf.truncated_normal_initializer(stddev=stddev))
+        init = tf.random.normal(
+                [k_h, k_w, inputs.get_shape().as_list()[-1], output_dim], stddev=stddev)*0.001
+        w = tf.get_variable('w', initializer=init)
         b = tf.get_variable(
             'b', [output_dim], initializer=tf.constant_initializer(0.1))
         conv = tf.nn.conv2d(inputs, w, strides=[1, d_h, d_w, 1], padding='SAME')

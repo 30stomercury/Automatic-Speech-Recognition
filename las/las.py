@@ -23,7 +23,6 @@ class Listener:
                 #   projection/batch-norm/relu ->
                 #   bidirectional lstm ->
                 #   projection/batch-norm/relu ->
-                #   bidirectional lstm
 
                 # cnn layers
                 feat_dim = self.args.feat_dim
@@ -52,8 +51,7 @@ class Listener:
                                          enc_out,
                                          self.args.enc_units, 
                                          use_bias=True)
-                        #enc_out = tf.nn.relu(bn(enc_out, is_training))
-                        enc_out = tf.nn.relu(enc_out)
+                        enc_out = tf.nn.relu(bn(enc_out, is_training))
 
                 enc_len = audiolen
 
@@ -83,7 +81,7 @@ class Speller:
             init_alphas = tf.zeros([tf.shape(enc_out)[0], 1, tf.shape(enc_out)[1]])
 
             if is_training:
-                tf_rate = 1#self._scheduled_sampling()
+                tf_rate = self._scheduled_sampling()
             else:
                 tf_rate = 0
 
