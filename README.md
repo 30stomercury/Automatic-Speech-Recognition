@@ -12,7 +12,7 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
     - Char/Subword text encoding.
     - MFCC/fbank acoustic features with per utterance CMVN.
     - LAS training (visualized with tensorboard: loss, sample text outputs, features, alignments).  
-    - Support joint CTC-Attention training. (See notes)
+    - TFrecord dataset pipline.
     - Batch testing using greedy decoder.
     - Beam search decoder.
     - RNNLM.
@@ -26,6 +26,7 @@ Note that this project is still in progress.
     - Volume augmentation is currently commented out because it shows little improvements.
 
 * Improvements
+    - CNN based Listener.
     - Augmentation include speed perturbation. (IMPORTANT) 
     - Label smoothing. (IMPORANT)
     - Bucketing.
