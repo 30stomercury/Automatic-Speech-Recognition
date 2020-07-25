@@ -7,9 +7,10 @@ class Listener:
     def __init__(self, args):
         self.args = args
 
-    def __call__(self, inputs, audiolen, encoder= 'cnn', is_training=True):
+    def __call__(self, inputs, audiolen, encoder= 'pblstm', is_training=True):
         with tf.variable_scope("Listener", reuse=tf.AUTO_REUSE):
             if encoder == 'pblstm':
+                inputs = tf.reshape(inputs, [tf.shape(inputs)[0], -1, self.args.feat_dim*3])
                 enc_out, enc_state, enc_len = pblstm(inputs, 
                                                      audiolen, 
                                                      self.args.num_enc_layers, 
@@ -25,6 +26,7 @@ class Listener:
                 #   projection/batch-norm/relu ->
 
                 # cnn layers
+                inputs = tf.reshape(inputs, [tf.shape(inputs)[0], -1, 13, 3])
                 feat_dim = self.args.feat_dim
                 num_channel = 32
                 conv_out = inputs 
@@ -40,7 +42,6 @@ class Listener:
 
                 # reshape to [B, L/4, feat_dim/4 * 32]
                 shape = tf.shape(conv_out)
-                enc_out = tf.reshape(conv_out, [shape[0], -1, int(feat_dim*num_channel)])
 
                 # blstm layers
                 for i in range(self.args.num_enc_layers):
@@ -49,7 +50,7 @@ class Listener:
                         enc_out = tf.concat(enc_out, -1)        
                         enc_out = tf.layers.dense(
                                          enc_out,
-                                         self.args.enc_units, 
+                                         self.args.enc_units*2, 
                                          use_bias=True)
                         enc_out = tf.nn.relu(bn(enc_out, is_training))
 
@@ -61,7 +62,7 @@ class Speller:
 
     def __init__(self, args):
         self.args = args
-        self.hidden_size = self.args.enc_units  # => output dimension of encoder h
+        self.hidden_size = self.args.enc_units*2  # => output dimension of encoder h
         self._build_decoder_cell()
         self._build_char_embeddings()
 
@@ -155,8 +156,12 @@ class Speller:
 
     def _look_up(self, char):
         """lookup from pre-definded embedding"""
-        return tf.nn.embedding_lookup(                                                                                                                                         
-                    self.embedding_matrix, char)
+        
+        if self.args.add_vn:
+            self.embedding_matrix += \
+                        0.1*tf.random.normal(tf.shape(self.embedding_matrix), stddev=0.075)
+
+        return tf.nn.embedding_lookup(self.embedding_matrix, char)
 
     def _sample_char(self, char):
         """Sample charactor from char distribution."""
@@ -252,7 +257,9 @@ class LAS:
         # update moving_mean & moving_variance 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-        optimizer = tf.train.AdamOptimizer(self.args.lr)
+        lr =  self._scheduled_learning_rate(
+                start=50000, decay_step=100000, decay_rate=0.5, min_rate=0.01, global_step=global_step)
+        optimizer = tf.train.AdamOptimizer(lr)
 
         # gradient clipping
         grad, variables = zip(*optimizer.compute_gradients(loss))
@@ -260,7 +267,8 @@ class LAS:
 
         with tf.control_dependencies(update_ops):
             if self.args.grad_clip > 0:
-                    train_op = optimizer.apply_gradients(zip(grad, variables), global_step=global_step)
+                    train_op = optimizer.apply_gradients(
+                            zip(grad, variables), global_step=global_step)
             else:
                 train_op = optimizer.minimize(loss, global_step=global_step)
 
@@ -303,16 +311,34 @@ class LAS:
     def _get_loss(self, logits, y):
         y = tf.slice(y, [0, 0], tf.shape(logits)[:2]) # crop padding
 
+        y_ = tf.one_hot(y, self.args.vocab_size)
         if self.args.label_smoothing:
-            y_ = label_smoothing(tf.one_hot(y, depth=self.args.vocab_size))
-        else:
-            y_ = tf.one_hot(y, self.args.vocab_size)
+            y_ = label_smoothing(y_)
 
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_)
         mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
         loss = tf.reduce_sum(
             cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
         return loss
+
+    def _scheduled_learning_rate(
+            self, start=50000, decay_step=100000, decay_rate=0.5, min_rate=0.01, global_step=0):
+        '''Using scheduled learning rate in: https://arxiv.org/pdf/1904.08779.pdf
+        Args:
+            start: int, start learning rate decay.
+            decay_step: int, decay constant.
+            min_rate: float, minimum learning rate.
+        Return:
+            scheduled_lr: scheduled learning rate.
+        '''
+
+        decayed_lr = tf.train.exponential_decay(self.args.lr,
+                          tf.maximum(global_step-start, 0), 
+                          decay_step, 
+                          decay_rate)
+
+        return tf.maximum(decayed_lr, min_rate*self.args.lr)
+
 
     def _get_ctc_loss(self, ctc_logits, y, enc_len):
         labels = tf.cast(y, tf.int64)

@@ -93,6 +93,10 @@ def parse_args():
                         type=str2bool, 
                         default=True, 
                         help='Apply label smoothing.')
+    parser.add_argument('--add_vn', 
+                        type=str2bool, 
+                        default=False, 
+                        help='Apply variational noise to weights.')
     parser.add_argument('--ctc', 
                         type=str2bool, 
                         default=False, 
@@ -119,10 +123,6 @@ def parse_args():
                         type=int,
                         default=2,
                         help='The number of layers of LSTM in Speller.')
-    parser.add_argument('--vocab_size',
-                        type=int,
-                        default=26,
-                        help='Vocabulary size.')
     parser.add_argument('--embedding_size',
                         type=int,
                         default=128,
@@ -131,10 +131,6 @@ def parse_args():
                         type=int,
                         default=128,
                         help='Attention size.')
-    parser.add_argument('--maxlen',
-                        type=int,
-                        default=400,
-                        help='Max length of char sequences in training.')
     parser.add_argument('--warmup_step',
                         type=int,
                         default=500000,
