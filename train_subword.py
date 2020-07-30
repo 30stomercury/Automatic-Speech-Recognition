@@ -1,4 +1,4 @@
-from utils.text import text_encoder, train_subword_tokenizer
+from utils.tokenizer import train_subword_tokenizer
 from preprocess import data_preparation
 from argparse import ArgumentParser
 import os
