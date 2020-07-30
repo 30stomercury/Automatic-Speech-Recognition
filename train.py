@@ -14,14 +14,15 @@ from glob import glob
 import joblib
 import numpy as np
 import tensorflow as tf
-from utils.text import text_encoder
-from las.utils import convert_idx_to_string
+from las.utils import convert_idx_to_string, get_save_vars
 from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
-from data_loader import batch_gen
+from utils.tokenizer import Subword_Encoder
+from tfrecord_data_loader import tfrecord_iterator, training_parser, get_num_records
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0' # set your device id
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2' # set your device id
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 
 # arguments
 args = parse_args()
@@ -40,89 +41,60 @@ print('=' * 60 + '\n')
 gpu_options = tf.GPUOptions(allow_growth=True)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
-def load_feats(path, cat):
-    partitions = np.sort(glob(path+"/"+cat+"_feats*"))
-    feats = []
-    for p in partitions:
-        feats_ = joblib.load(p)
-        feats = np.append(feats, feats_)   
-    return feats
+
+# tfrecord
+training_filenames = [
+    "data/tfrecord_bpe_5k/train-100-1.tfrecord", "data/tfrecord_bpe_5k/train-360-1.tfrecord",
+    "data/tfrecord_bpe_5k/train-360-2.tfrecord", "data/tfrecord_bpe_5k/train-360-3.tfrecord"
+]
 
 # load from previous output
 try:
     print("Load features...")
-    # train
-    train_feats = load_feats(args.feat_dir, "train")
-    train_featlen = np.load(
-        args.feat_dir+"/train_featlen.npy", allow_pickle=True)
-    train_tokens = np.load(
-        args.feat_dir+"/train_{}s.npy".format(args.unit), allow_pickle=True)
-    train_tokenlen = np.load(
-        args.feat_dir+"/train_{}len.npy".format(args.unit), allow_pickle=True)
-    # aug
-    if args.augmentation:
-        for factor in [0.9, 1.1]:
-            aug_feats = load_feats(args.feat_dir, "speed_{}".format(factor))
-            aug_featlen = np.load(
-                    args.feat_dir+"/speed_{}_featlen.npy".format(factor), allow_pickle=True)
-            train_feats = np.append(train_feats, aug_feats)
-            train_featlen = np.append(train_featlen, aug_featlen)
-            train_tokens = np.append(train_tokens, train_tokens[:len(aug_feats)])
-            train_tokenlen = np.append(train_tokenlen, train_tokenlen[:len(aug_feats)])
+    train_iter, types, shapes = tfrecord_iterator(training_filenames, training_parser)
+    num_train_records = get_num_records(training_filenames)
+    print('Number of train records in training files: {}'.format(
+        num_train_records))
 
 # process features
 except:
-    raise Exception("Run preprocess.py first")
+    raise Exception("Run preprocess.py, create_tfrecord.py first")
 
-# Limit text length to predefined decoding steps
-# train
-index = train_tokenlen < args.maxlen
-train_feats = train_feats[index]
-train_featlen = train_featlen[index]
-train_tokens = train_tokens[index]
-train_tokenlen = train_tokenlen[index]
 
-# tokenize tools
-special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-tokenizer = text_encoder(args.unit, special_tokens)
+
+# tokenize tools: Using subword unit.
+tokenizer = Subword_Encoder(args.subword_dir)
 args.vocab_size = tokenizer.get_vocab_size()
 id_to_token = tokenizer.id_to_token
+
 
 # init model 
 las =  LAS(args, Listener, Speller, id_to_token)
 
+
 # build batch iterator
 logging.info("Build batch iterator...")
-train_iter, num_train_batches = batch_gen(
-                                    train_feats, 
-                                    train_tokens, 
-                                    train_featlen, 
-                                    train_tokenlen, 
-                                    args.batch_size, 
-                                    args.feat_dim, 
-                                    args.bucketing, 
-                                    is_training=True)
 train_xs, train_ys = train_iter.get_next()
 
-# build train, inference graph 
+# build train graph 
 logging.info("Build train graph (please wait)...")
-loss, train_op, global_step, train_logits, alphas, train_summary = las.train(train_xs, train_ys)
+loss, train_op, global_step, train_logits, alphas, train_summary, sample_rate = las.train(train_xs, train_ys)
 
-# saver
+
+# save model
 if not os.path.exists(args.save_dir):
     os.makedirs(args.save_dir)
 
-saver = tf.train.Saver(max_to_keep=100)
+var_list = get_save_vars()
+saver = tf.train.Saver(var_list=var_list, max_to_keep=30)
+ckpt = tf.train.latest_checkpoint(args.save_dir)
 
-if args.restore_epoch > 0:
-    ckpt = args.save_dir + "/las_E{}".format(args.restore_epoch)
-else:
-    ckpt = tf.train.latest_checkpoint(args.save_dir)
 
 if ckpt is None:
     sess.run(tf.global_variables_initializer())
 else:
     saver.restore(sess, ckpt)
+
 
 # init iterator and graph
 sess.run(train_iter.initializer)
@@ -138,23 +110,25 @@ logging.info("Total weights: {}".format(
             np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
 
 # training
+num_train_batches = num_train_records // 48 + int(num_train_records % 32 != 0)
 training_steps = num_train_batches * args.epoch
 logging.info("Total num train batches: {}".format(num_train_batches))
 logging.info("Training...")
 loss_ = []
 
 for step in range(training_steps):
-    batch_loss, gs, _, summary_, logits, train_gt = sess.run(
-                        [loss, global_step, train_op, train_summary, train_logits, train_ys])
+    batch_loss, gs, _, logits, train_gt, tfrate = sess.run(
+                        [loss, global_step, 
+                            train_op, train_logits, train_ys, sample_rate])
 
     if args.verbose > 0:
         logging.info("HYP: {}".format(
             convert_idx_to_string(np.argmax(logits, -1)[0], id_to_token, args.unit)))
+
         logging.info("REF: {}\n".format(
             convert_idx_to_string(train_gt[0][0], id_to_token, args.unit)))
 
-    logging.info("Step: {}, Loss: {}".format(gs, batch_loss))
-    summary_writer.add_summary(summary_, gs)
+    logging.info("Step: {}, Loss: {:.3f}, tf rate: {:.3f}".format(gs, batch_loss, tfrate))
     loss_.append(batch_loss)
     if gs and gs % num_train_batches == 0:
         ave_loss = np.mean(loss_)
@@ -163,4 +137,3 @@ for step in range(training_steps):
         saver.save(sess, args.save_dir+"/las_E{}".format(e_))      
         loss_ = []  
 
-summary_writer.close()

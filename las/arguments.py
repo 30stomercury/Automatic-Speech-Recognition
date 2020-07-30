@@ -93,6 +93,10 @@ def parse_args():
                         type=str2bool, 
                         default=True, 
                         help='Apply label smoothing.')
+    parser.add_argument('--add_vn', 
+                        type=str2bool, 
+                        default=False, 
+                        help='Apply variational noise to weights.')
     parser.add_argument('--ctc', 
                         type=str2bool, 
                         default=False, 
@@ -119,10 +123,6 @@ def parse_args():
                         type=int,
                         default=2,
                         help='The number of layers of LSTM in Speller.')
-    parser.add_argument('--vocab_size',
-                        type=int,
-                        default=26,
-                        help='Vocabulary size.')
     parser.add_argument('--embedding_size',
                         type=int,
                         default=128,
@@ -131,10 +131,6 @@ def parse_args():
                         type=int,
                         default=128,
                         help='Attention size.')
-    parser.add_argument('--maxlen',
-                        type=int,
-                        default=400,
-                        help='Max length of char sequences in training.')
     parser.add_argument('--warmup_step',
                         type=int,
                         default=500000,
@@ -168,34 +164,46 @@ def parse_args():
                         type=float, 
                         default=0.5, 
                         help='Weighting of recoring with language model.')
-    # save dir
-    parser.add_argument('--train_data_dir',
+    # dir
+    parser.add_argument('--train_100hr_corpus_dir',
                         type=str,
-                        default='./data/LibriSpeech/LibriSpeech_train/train-clean-100',
+                        default='data/LibriSpeech/LibriSpeech_train/train-clean-100',
+                        help='')
+    parser.add_argument('--train_360hr_corpus_dir',
+                        type=str,
+                        default='data/LibriSpeech/LibriSpeech_train/train-clean-360',
+                        help='')
+    parser.add_argument('--train_500hr_corpus_dir',
+                        type=str,
+                        default='data/LibriSpeech/LibriSpeech_train/train-other-500',
                         help='')
     parser.add_argument('--dev_data_dir',
                         type=str,
-                        default='./data/LibriSpeech-100/LibriSpeech_dev/dev-clean',
+                        default='data/LibriSpeech-100/LibriSpeech_dev/dev-clean',
                         help='')
     parser.add_argument('--test_data_dir',
                         type=str,
-                        default='./data/LibriSpeech-100/LibriSpeech_test/test-clean',
+                        default='data/LibriSpeech-100/LibriSpeech_test/test-clean',
                         help='')
     parser.add_argument('--feat_dir', 
                         type=str, 
-                        default='./data/LibriSpeech/features', 
+                        default='data/LibriSpeech/features', 
                         help='Path to save features.')
+    parser.add_argument('--subword_dir', 
+                        type=str, 
+                        default='subword/', 
+                        help='Path to vocab files of BPE subword unit.')
     parser.add_argument('--log_dir',
                         type=str,
-                        default='./log',
+                        default='log/',
                         help='Save log file..')
     parser.add_argument('--save_dir',
                         type=str,
-                        default='./model/las',
+                        default='model/las/',
                         help='Save trained model.')
     parser.add_argument('--summary_dir',
                         type=str,
-                        default='./summary',
+                        default='summary/',
                         help='Save summary.')
 
     args = parser.parse_args()

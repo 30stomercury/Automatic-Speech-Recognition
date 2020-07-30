@@ -4,9 +4,11 @@ import numpy as np
 
 def mask(original_len, padded_len):
     """Creating mask for sequences with different lengths in a batch.
+    
     Args:
         original_len: (B,), original lengths of sequences in a batch.
         padded_len:   scalar,  length of padded sequence.
+
     Return:
         mask:         (B, T), int32 tensor, a mask of varied lengths.
 
@@ -18,6 +20,7 @@ def mask(original_len, padded_len):
                 [1, 1, 1],
                 [1, 0, 0])
     """
+
     y = tf.range(1, padded_len+1, 1)
     original_len = tf.expand_dims(original_len, 1)
     original_len = tf.cast(original_len, tf.int32)
@@ -27,18 +30,21 @@ def mask(original_len, padded_len):
 
 def label_smoothing(inputs, epsilon=0.01):
     """label smoothing
+
     Reference: https://github.com/Kyubyong/transformer/blob/master/tf1.2_legacy/modules.py
     """
+
     K = inputs.get_shape().as_list()[-1] 
     return ((1-epsilon) * inputs) + (epsilon / K)
 
 def attention(h, state, h_dim, s_dim, attention_size, seq_len):
     """Bahdanau attention
-    args:
-        h: (B, T, enc_units*2), encoder output.
-        state: (B, dec_units), previous decoder hidden state.
-        h_dim: encoder units.
-        s_dim: decoder units.
+
+    Args:
+        h:       (B, T, enc_units), encoder output.
+        state:   (B, dec_units), previous decoder hidden state.
+        h_dim:   encoder units.
+        s_dim:   decoder units.
         seq_len: timesteps of sequences.
     """
     
@@ -50,7 +56,7 @@ def attention(h, state, h_dim, s_dim, attention_size, seq_len):
         state_.set_shape([None, 1, s_dim])
         # Trainable parameters
         with tf.control_dependencies(None):
-            u = tf.Variable(tf.random_uniform([attention_size], minval=-1, maxval=1, dtype=tf.float32))
+                    u = tf.Variable(tf.random_uniform([attention_size], minval=-1, maxval=1, dtype=tf.float32))
         v = tf.nn.tanh(
                 tf.layers.dense(h, attention_size, use_bias=False) + tf.layers.dense(state_, attention_size, use_bias=False))
         vu = tf.tensordot(v, u, axes=1)
@@ -121,7 +127,7 @@ def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training)
     with tf.variable_scope('blstm'):
         rnn_out, _ = blstm(inputs, cell_units, dropout_rate, is_training)
         rnn_out = tf.concat(rnn_out, -1)        
-        rnn_out = tf.layers.dense(                                                                                                                                                                     
+        rnn_out = tf.layers.dense(
                             rnn_out,
                             enc_dim, use_bias=True, 
                             activation=tf.nn.tanh)
@@ -147,11 +153,31 @@ def pblstm(inputs, audio_len, num_layers, cell_units, dropout_rate, is_training)
             audio_len = (audio_len + audio_len % 2) / 2
     return rnn_out, states, audio_len
 
+def conv2d(inputs, output_dim, k_h=3, k_w=3, d_h=2, d_w=2, stddev=1, name="conv2d", is_training=True):
+    with tf.variable_scope(name) as scope:
+        init = tf.random.normal(
+                [k_h, k_w, inputs.get_shape().as_list()[-1], output_dim], stddev=stddev)*0.001
+        w = tf.get_variable('w', initializer=init)
+        b = tf.get_variable(
+            'b', [output_dim], initializer=tf.constant_initializer(0.1))
+        conv = tf.nn.conv2d(inputs, w, strides=[1, d_h, d_w, 1], padding='SAME')
+        conv += b
+        conv = bn(conv, is_training)
+        conv = tf.nn.relu(conv)
+
+        return conv
+
+def bn(inputs, is_training):
+
+    return tf.layers.batch_normalization(inputs, training=is_training)
+
 def convert_idx_to_token_tensor(inputs, id_to_token, unit="char"):
     """Converts int32 tensor to string tensor.
+
     Reference:
         https://github.com/Kyubyong/transformer/blob/master/utils.py
     """
+
     def my_func(inputs):
         sent = "".join(id_to_token[elem] for elem in inputs)
         sent = sent.split("<EOS>")[0].strip()
@@ -198,3 +224,13 @@ def edit_distance(s1,s2):
                 d[i,j] = min(d[i-1,j]+1, d[i,j-1]+1, d[i-1,j-1]+1)
 
     return d[-1,-1], len(s1)
+
+def get_save_vars():
+    """Get all variables needed to be save."""
+
+    var_list = [var for var in tf.global_variables() if "moving" in var.name]                       # include moving var, mean
+    var_list += tf.trainable_variables()                                                            # trainable var
+    var_list += [var for var in tf.global_variables() if "Adam" in var.name or "step" in var.name]  # adam parms
+    var_list += [var for var in tf.global_variables() if "beta1_power" in var.name or "beta2_power" in var.name]
+
+    return var_list

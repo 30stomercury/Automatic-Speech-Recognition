@@ -10,9 +10,9 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 
 * Components:
     - Char/Subword text encoding.
-    - MFCC/fbank acoustic features with CMVN.
+    - MFCC/fbank acoustic features with per utterance CMVN.
     - LAS training (visualized with tensorboard: loss, sample text outputs, features, alignments).  
-    - Support joint CTC-Attention training. (See notes)
+    - TFrecord dataset pipline.
     - Batch testing using greedy decoder.
     - Beam search decoder.
     - RNNLM.
@@ -21,15 +21,17 @@ This is a tensorflow implementation of end-to-end ASR. Though there are several 
 
 Note that this project is still in progress.
 * Notes
-    - Currently, I only test this model on MFCC 39 (13+delta+accelerate) features + character text encoding.
+    - Currently, I only test this model on MFCC 39 (13+delta+accelerate) features w/ character text encoding.
     - BPE and CTC related parts are not yet fully tested.
     - Volume augmentation is currently commented out because it shows little improvements.
 
 * Improvements
+    - CNN based Listener.
     - Augmentation include speed perturbation. (IMPORTANT) 
     - Label smoothing. (IMPORANT)
     - Bucketing.
-    - Segment a long utterance into two smaller chunks and decode each chunk independently. Then combin the outputs together.
+    - Scheduled sampling.
+    - Scheduled learning rate.
 
 * Some advice
     - Generally, LibriSpeech-100 is not large enough unless you perform speed augmentation.
@@ -57,12 +59,7 @@ The definitions of the args are described in `las/arguments.py`. You can modify 
 ### 0) Prepare data
 - Libirspeech train/dev/test data
 ```bash
-sh prepare_libri_data.sh LibriSpeech-100 (OR LibriSpeech-360)
-```
-
-- TEDLIUM train/dev/test data
-```bash
-sh prepare_ted_data.sh TED-LIUMv1 (OR TED-LIUMv2)
+bash prepare_libri_data.sh 
 ```
 
 ### 1) Preprocess Audios & Texts.
@@ -70,16 +67,6 @@ Prepare Libirspeech train/dev/test data:
 ```bash
 python3 preprocess.py --dataset LibriSpeech \
                       --train_data_dir data/LibriSpeech/LibriSpeech_train/train-clean-100/ \
-                      --feat_dir data/LibriSpeech/features \
-                      --unit UNIT \
-                      --augmentation AUGMENTATION \
-                      --feat_type FEAT_TYPE \
-                      --feat_dim FEAT_DIM
-```
-
-Prepare TEDLIUM train/dev/test data:
-```bash
-python3 preprocess.py --dataset TEDLIUM \
                       --feat_dir data/LibriSpeech/features \
                       --unit UNIT \
                       --augmentation AUGMENTATION \
@@ -153,14 +140,13 @@ Results trained on LibriSpeech-360 (WER)
 ## Reference
 - [Listen, Attend and Spell](https://arxiv.org/pdf/1508.01211.pdf)
 - [State-of-the-Art Speech Recognition with Sequence-to-Sequence Models](https://arxiv.org/pdf/1712.01769.pdf)
-- [Attention-Based Sequence-to-Sequence Model For Speech Recognition: Development of State-of-the-Art System on Librispeech and Its Application to Non-Native English](https://arxiv.org/pdf/1810.13088.pdf)
+- [On the Choice of Modeling Unit for Sequence-to-Sequence Speech Recognition](https://arxiv.org/pdf/1902.01955.pdf)
 - Char RNNLM: [TensorFlow-Char-RNN](https://github.com/crazydonkey200/tensorflow-char-rnn)
 - A nice Pytorch version: [End-to-end-ASR-Pytorch](https://github.com/Alexander-H-Liu/End-to-end-ASR-Pytorch).
 
 ## TODO
+- [X] Add scheduled sampling.
 - [ ] Evaluate the performance with subword unit: Subword las training. 
 - [ ] Decoding with subword-based RNNLM. 
 - [ ] Evaluate the performance on joint CTC training, decoding.
-- [ ] Test on TEDLIUM dataset.
-- [ ] Add other attention mechanisms such as multi-head attention. 
-- [X] Add scheduled sampling.
+- [ ] Add other attention mechanisms such as location attention.
