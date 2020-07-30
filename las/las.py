@@ -7,7 +7,7 @@ class Listener:
     def __init__(self, args):
         self.args = args
 
-    def __call__(self, inputs, audiolen, encoder= 'pblstm', is_training=True):
+    def __call__(self, inputs, audiolen, encoder= 'cnn', is_training=True):
         with tf.variable_scope("Listener", reuse=tf.AUTO_REUSE):
             if encoder == 'pblstm':
                 inputs = tf.reshape(inputs, [tf.shape(inputs)[0], -1, self.args.feat_dim*3])
@@ -26,7 +26,6 @@ class Listener:
                 #   projection/batch-norm/relu ->
 
                 # cnn layers
-                inputs = tf.reshape(inputs, [tf.shape(inputs)[0], -1, 13, 3])
                 feat_dim = self.args.feat_dim
                 num_channel = 32
                 conv_out = inputs 
@@ -35,13 +34,14 @@ class Listener:
                     feat_dim = (feat_dim + feat_dim % 2) / 2
                     audiolen = (audiolen + audiolen % 2) / 2
 
-                    #output_shape = [None, audiolen, feat_dim, num_channel]
+                    # output_shape = [None, audiolen, feat_dim, num_channel]
                     conv_out = conv2d(conv_out, 
                                       num_channel, 
                                       name="conv2d_{}".format(i), is_training=is_training)
 
                 # reshape to [B, L/4, feat_dim/4 * 32]
                 shape = tf.shape(conv_out)
+                enc_out = tf.reshape(conv_out, [shape[0], -1, int(feat_dim*num_channel)])
 
                 # blstm layers
                 for i in range(self.args.num_enc_layers):
@@ -50,7 +50,7 @@ class Listener:
                         enc_out = tf.concat(enc_out, -1)        
                         enc_out = tf.layers.dense(
                                          enc_out,
-                                         self.args.enc_units*2, 
+                                         self.args.enc_units, 
                                          use_bias=True)
                         enc_out = tf.nn.relu(bn(enc_out, is_training))
 
@@ -62,7 +62,7 @@ class Speller:
 
     def __init__(self, args):
         self.args = args
-        self.hidden_size = self.args.enc_units*2  # => output dimension of encoder h
+        self.hidden_size = self.args.enc_units  # => output dimension of encoder h
         self._build_decoder_cell()
         self._build_char_embeddings()
 
@@ -206,11 +206,13 @@ class LAS:
 
     def __init__(self, args, Listener, Speller, id_to_token):
         '''Consturct Listen attend ande spell objects.
+
         Args:
-            args: Include model/train/inference parameters that are packed in arguments.py
+            args:     Include model/train/inference parameters that are packed in arguments.py
             listener: The encoder built in pyramid rnn.
-            speller: The decoder with an attention layer.
+            speller:  The decoder with an attention layer.
         '''
+
         self.args = args
         self.listener = Listener(args)
         self.speller = Speller(args)
@@ -218,13 +220,15 @@ class LAS:
 
     def train(self, xs, ys):
         ''' Buid decoder encoder network, compute loss.
+
         Args:
             xs: a tuple of 
                 - audio:    (B, T1, D), T1: padded feature timesteps, D: feature dimension.
                 - audiolen: (B,), original feature length.
             ys: 
                 - y:        (B, T2), T2: output time steps.
-                - tokenlen:  (B,), original character length.
+                - tokenlen: (B,), original character length.
+
         Returns: 
             loss
             train_op
@@ -324,10 +328,12 @@ class LAS:
     def _scheduled_learning_rate(
             self, start=50000, decay_step=100000, decay_rate=0.5, min_rate=0.01, global_step=0):
         '''Using scheduled learning rate in: https://arxiv.org/pdf/1904.08779.pdf
+
         Args:
-            start: int, start learning rate decay.
+            start:      int, start learning rate decay.
             decay_step: int, decay constant.
-            min_rate: float, minimum learning rate.
+            min_rate:   float, minimum learning rate.
+
         Return:
             scheduled_lr: scheduled learning rate.
         '''

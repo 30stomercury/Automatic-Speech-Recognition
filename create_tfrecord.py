@@ -29,8 +29,11 @@ def load_feats(path, cat):
 # create tfrecords for dataset 
 
 def create_tfrecords(X, y, filename, num_files=5):
-    ''' create tfrecords for dataset '''
-    
+    ''' Create tfrecords for dataset 
+    Args 
+        X: Input acoustic features.
+        y: Input token id sequence.
+    '''
     def _float_feature(value):
         return tf.train.Feature(float_list=tf.train.FloatList(value=value))
     def _int64_feature(value):
@@ -58,7 +61,12 @@ def create_tfrecords(X, y, filename, num_files=5):
 
         for feat, token in tqdm(zip(feats[st : ed], tokens[st : ed])):
             
-            # construct 'example' object containing 'feat', 'shape', 'token' 
+            # Construct 'example' object containing 'feat', 'shape', 'token':
+            #  {
+            #   'feat':  tensor, flattened mfcc or fbank,
+            #   'shape': tensor, input feature shape,
+            #   'token': tensor, a list of word id which describes input acoustic feature.
+            #  }
             example = tf.train.Example(features=tf.train.Features(feature={
                 'feat': _float_feature(feat.flatten()),
                 'shape': _int64_feature(feat.shape),
@@ -67,6 +75,7 @@ def create_tfrecords(X, y, filename, num_files=5):
 
             count += 1
             writer.write(example.SerializeToString())
+
         print("create {}-{}.tfrecord -- contains {} records".format(filename, str(i+1), count))
         total_count += count
         writer.close()
