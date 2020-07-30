@@ -127,25 +127,23 @@ def main_libri(args, tokenizer):
                 feats, featlen_ = process_audios(audio_path[i*n:(i+1)*n], args)
                 featlen += featlen_
                 # save
-                joblib.dump(feats, args.feat_dir+"/{}_feats_{}.pkl".format(cat, i))
+                joblib.dump(feats, args.feat_dir+"/{}-feats-{}.pkl".format(cat, i))
                 feats = []
         else:
             feats, featlen = process_audios(audio_path, args)
-            joblib.dump(feats, args.feat_dir+"/{}_feats.pkl".format(cat))
+            joblib.dump(feats, args.feat_dir+"/{}-feats.pkl".format(cat))
 
-        np.save(args.feat_dir+"/{}_featlen.npy".format(cat), featlen)
+        np.save(args.feat_dir+"/{}-featlen.npy".format(cat), featlen)
 
-
-    path = [('train', args.train_100hr_corpus_dir), ('train', args.train_360hr_corpus_dir), 
-            ('train', args.train_500hr_corpus_dir),
-            ('dev',args.dev_data_dir), ('test', args.test_data_dir)]
-    path = [('train', args.train_100hr_corpus_dir), 
+    # data directories
+    path = [('train-100', args.train_100hr_corpus_dir), ('train-360', args.train_360hr_corpus_dir), 
+            ('train-500', args.train_500hr_corpus_dir),
             ('dev',args.dev_data_dir), ('test', args.test_data_dir)]
 
     for element in path:
                      
         # prepare data
-        cat = element[0]
+        cat = element[0]            # the prefix of filenames
         libri_path = element[1]
         texts, audio_path = data_preparation(libri_path)
 
@@ -156,11 +154,11 @@ def main_libri(args, tokenizer):
         tokens, tokenlen = process_texts(texts, tokenizer)
 
         # save text features
-        np.save(args.feat_dir+"/{}_{}s.npy".format(cat, args.unit), tokens)
-        np.save(args.feat_dir+"/{}_{}len.npy".format(cat, args.unit), tokenlen)
+        np.save(args.feat_dir+"/{}-{}s.npy".format(cat, args.unit), tokens)
+        np.save(args.feat_dir+"/{}-{}len.npy".format(cat, args.unit), tokenlen)
         
         # audios
-        #process_libri_feats(audio_path, cat, 4)
+        process_libri_feats(audio_path, cat, 4)
         
         # augmentation
         if args.augmentation and cat == 'train':   
