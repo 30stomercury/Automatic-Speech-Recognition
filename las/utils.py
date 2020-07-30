@@ -4,9 +4,11 @@ import numpy as np
 
 def mask(original_len, padded_len):
     """Creating mask for sequences with different lengths in a batch.
+    
     Args:
         original_len: (B,), original lengths of sequences in a batch.
         padded_len:   scalar,  length of padded sequence.
+
     Return:
         mask:         (B, T), int32 tensor, a mask of varied lengths.
 
@@ -18,6 +20,7 @@ def mask(original_len, padded_len):
                 [1, 1, 1],
                 [1, 0, 0])
     """
+
     y = tf.range(1, padded_len+1, 1)
     original_len = tf.expand_dims(original_len, 1)
     original_len = tf.cast(original_len, tf.int32)
@@ -27,18 +30,21 @@ def mask(original_len, padded_len):
 
 def label_smoothing(inputs, epsilon=0.01):
     """label smoothing
+
     Reference: https://github.com/Kyubyong/transformer/blob/master/tf1.2_legacy/modules.py
     """
+
     K = inputs.get_shape().as_list()[-1] 
     return ((1-epsilon) * inputs) + (epsilon / K)
 
 def attention(h, state, h_dim, s_dim, attention_size, seq_len):
     """Bahdanau attention
-    args:
-        h: (B, T, enc_units*2), encoder output.
-        state: (B, dec_units), previous decoder hidden state.
-        h_dim: encoder units.
-        s_dim: decoder units.
+
+    Args:
+        h:       (B, T, enc_units), encoder output.
+        state:   (B, dec_units), previous decoder hidden state.
+        h_dim:   encoder units.
+        s_dim:   decoder units.
         seq_len: timesteps of sequences.
     """
     
@@ -167,9 +173,11 @@ def bn(inputs, is_training):
 
 def convert_idx_to_token_tensor(inputs, id_to_token, unit="char"):
     """Converts int32 tensor to string tensor.
+
     Reference:
         https://github.com/Kyubyong/transformer/blob/master/utils.py
     """
+
     def my_func(inputs):
         sent = "".join(id_to_token[elem] for elem in inputs)
         sent = sent.split("<EOS>")[0].strip()
@@ -216,3 +224,13 @@ def edit_distance(s1,s2):
                 d[i,j] = min(d[i-1,j]+1, d[i,j-1]+1, d[i-1,j-1]+1)
 
     return d[-1,-1], len(s1)
+
+def get_save_vars():
+    """Get all variables needed to be save."""
+
+    var_list = [var for var in tf.global_variables() if "moving" in var.name]                       # include moving var, mean
+    var_list += tf.trainable_variables()                                                            # trainable var
+    var_list += [var for var in tf.global_variables() if "Adam" in var.name or "step" in var.name]  # adam parms
+    var_list += [var for var in tf.global_variables() if "beta1_power" in var.name or "beta2_power" in var.name]
+
+    return var_list

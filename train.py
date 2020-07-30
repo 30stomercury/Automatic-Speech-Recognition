@@ -14,7 +14,7 @@ from glob import glob
 import joblib
 import numpy as np
 import tensorflow as tf
-from las.utils import convert_idx_to_string
+from las.utils import convert_idx_to_string, get_save_vars
 from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
 from utils.tokenizer import Subword_Encoder
@@ -23,11 +23,6 @@ from tfrecord_data_loader import tfrecord_iterator, training_parser, get_num_rec
 os.environ['CUDA_VISIBLE_DEVICES'] = '2' # set your device id
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-# cpu utility
-os.environ["OMP_NUM_THREADS"] = "6"
-os.environ["KMP_BLOCKTIME"] = "30"
-os.environ["KMP_SETTINGS"] = "1"
-os.environ["KMP_AFFINITY"] = "granularity=fine,verbose,compact,1,0"
 
 # arguments
 args = parse_args()
@@ -42,17 +37,9 @@ print('=' * 60 + '\n')
 logging.info('Parameters are:\n%s\n', json.dumps(vars(args), sort_keys=False, indent=4))
 print('=' * 60 + '\n')
 
-"""
 # init session 
 gpu_options = tf.GPUOptions(allow_growth=True)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-"""
-
-# cpu utility
-NUM_PARALLEL_EXEC_UNITS = 6
-config = tf.ConfigProto(intra_op_parallelism_threads=NUM_PARALLEL_EXEC_UNITS, inter_op_parallelism_threads=2,
-                       allow_soft_placement=True, device_count={'CPU': NUM_PARALLEL_EXEC_UNITS})
-sess = tf.Session(config=config)
 
 
 # tfrecord
@@ -60,9 +47,6 @@ training_filenames = [
     "data/tfrecord_bpe_5k/train-100-1.tfrecord", "data/tfrecord_bpe_5k/train-360-1.tfrecord",
     "data/tfrecord_bpe_5k/train-360-2.tfrecord", "data/tfrecord_bpe_5k/train-360-3.tfrecord"
 ]
-#training_filenames = [
-#    "data/tfrecord_bpe_5k/train-100-1.tfrecord"
-#]
 
 # load from previous output
 try:
@@ -74,7 +58,7 @@ try:
 
 # process features
 except:
-    raise Exception("Run preprocess.py, create_tfrecord first")
+    raise Exception("Run preprocess.py, create_tfrecord.py first")
 
 
 
@@ -97,17 +81,13 @@ logging.info("Build train graph (please wait)...")
 loss, train_op, global_step, train_logits, alphas, train_summary, sample_rate = las.train(train_xs, train_ys)
 
 
-# saver
+# save model
 if not os.path.exists(args.save_dir):
     os.makedirs(args.save_dir)
 
-var_list = [var for var in tf.global_variables() if "moving" in var.name] # include moving var, mean
-var_list += tf.trainable_variables()
-var_list += [var for var in tf.global_variables() if "Adam" in var.name or "step" in var.name]
-var_list += [var for var in tf.global_variables() if "beta1_power" in var.name or "beta2_power" in var.name]
+var_list = get_save_vars()
 saver = tf.train.Saver(var_list=var_list, max_to_keep=30)
 ckpt = tf.train.latest_checkpoint(args.save_dir)
-#ckpt = 'model/las_v6/las_E370'
 
 
 if ckpt is None:
@@ -129,21 +109,17 @@ print('=' * 60 + '\n')
 logging.info("Total weights: {}".format(
             np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
 
-print(tf.trainable_variables())
-print([var for var in tf.global_variables() if "moving" in var.name or 'step' in var.name])
-
 # training
 num_train_batches = num_train_records // 48 + int(num_train_records % 32 != 0)
 training_steps = num_train_batches * args.epoch
 logging.info("Total num train batches: {}".format(num_train_batches))
 logging.info("Training...")
 loss_ = []
-#num_train_batches = 5000
+
 for step in range(training_steps):
     batch_loss, gs, _, logits, train_gt, tfrate = sess.run(
                         [loss, global_step, 
                             train_op, train_logits, train_ys, sample_rate])
-    #print(max(train_gt[1]), logits.shape)
 
     if args.verbose > 0:
         logging.info("HYP: {}".format(
