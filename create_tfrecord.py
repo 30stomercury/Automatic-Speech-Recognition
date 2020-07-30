@@ -29,7 +29,7 @@ MAXLEN = 1710
 
 
 def load_feats(path, cat):
-    partitions = np.sort(glob(path+"/"+cat+"_feats*"))
+    partitions = np.sort(glob(path+"/"+cat+"-feats*"))
     feats = []
     for p in partitions:
         feats_ = joblib.load(p)
@@ -112,7 +112,7 @@ for h in [100, 360, 500]:
     X = train_feats[train_featlen < MAXLEN]
     y = train_tokens[train_featlen < MAXLEN]
 
-    create_tfrecords(X, y, args.save_dir+predfix, h // 100)
+    create_tfrecords(X, y, args.save_dir+prefix, h // 100)
 
 # dev, test
 for prefix in ["dev", "test"]:
@@ -124,4 +124,4 @@ for prefix in ["dev", "test"]:
 
     assert len(eval_feats) == len(eval_tokens)
 
-    create_tfrecords(X, y, args.save_dir+predfix, 1)
+    create_tfrecords(X, y, args.save_dir+prefix, 1)
