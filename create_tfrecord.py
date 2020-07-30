@@ -96,8 +96,8 @@ def create_tfrecords(X, y, filename, num_files=5):
 # 100h, 360h, 500h
 feat_dir = args.feat_dir
 
-if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
+if not os.path.exists(args.save_dir):
+    os.makedirs(args.save_dir)
 
 for h in [100, 360, 500]:
     prefix = "train-{}".format(h)
@@ -105,7 +105,7 @@ for h in [100, 360, 500]:
     train_featlen = np.load(
             feat_dir + "/{}-featlen.npy".format(prefix), allow_pickle=True)
     train_tokens = np.load(
-            feat_dir + "/{}_{}s.npy".format(prefix, UNIT), allow_pickle=True)
+            feat_dir + "/{}-{}s.npy".format(prefix, UNIT), allow_pickle=True)
 
     assert len(train_feats) == len(train_tokens)
 
@@ -120,7 +120,7 @@ for prefix in ["dev", "test"]:
     eval_featlen = np.load(
             feat_dir + "/{}-featlen.npy".format(prefix), allow_pickle=True)
     eval_tokens = np.load(
-            feat_dir + "/{}_{}s.npy".format(prefix, UNIT), allow_pickle=True)
+            feat_dir + "/{}-{}s.npy".format(prefix, UNIT), allow_pickle=True)
 
     assert len(eval_feats) == len(eval_tokens)
 
