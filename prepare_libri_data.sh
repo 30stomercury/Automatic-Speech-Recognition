@@ -28,12 +28,12 @@ wget $SOURCE/dev-clean.tar.gz
 wget $SOURCE/test-clean.tar.gz
 
 
-mkdir data/LibriSpeech_eval
+mkdir data/eval
 
 tar -xvf dev-clean.tar.gz
-mv LibriSpeech data/LibriSpeech_eval/LibriSpeech_dev
+mv LibriSpeech data/eval/LibriSpeech_dev
 
 tar -xvf test-clean.tar.gz
-mv LibriSpeech data/LibriSpeech_eval/LibriSpeech_test
+mv LibriSpeech data/eval/LibriSpeech_test
 
 
