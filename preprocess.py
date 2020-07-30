@@ -204,6 +204,6 @@ if __name__ == '__main__':
         tokenizer = Subword_Encoder(args.subword_dir)
 
 
-    assert args.dataset == 'LibriSpeech':
+    assert args.dataset == 'LibriSpeech'
     main_libri(args, tokenizer)
 
