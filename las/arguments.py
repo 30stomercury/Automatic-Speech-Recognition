@@ -60,10 +60,6 @@ def parse_args():
                         type=int, 
                         default=0, 
                         help='Verbosity.')
-    parser.add_argument('--bucketing', 
-                        type=str2bool, 
-                        default=True, 
-                        help='Apply bucketing.')
     parser.add_argument('--batch_size', 
                         '-bs',
                         type=int, 
