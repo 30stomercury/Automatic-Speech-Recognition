@@ -18,7 +18,7 @@ from las.utils import convert_idx_to_string, get_save_vars
 from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
 from utils.tokenizer import Subword_Encoder
-from tfrecord_data_loader import tfrecord_iterator, training_parser, get_num_records
+from tfrecord_data_loader import tfrecord_iterator, data_parser, get_num_records
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '2' # set your device id
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -51,7 +51,7 @@ training_filenames = [
 # load from previous output
 try:
     print("Load features...")
-    train_iter, types, shapes = tfrecord_iterator(training_filenames, training_parser)
+    train_iter, types, shapes = tfrecord_iterator(training_filenames, data_parser)
     num_train_records = get_num_records(training_filenames)
     print('Number of train records in training files: {}'.format(
         num_train_records))

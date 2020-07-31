@@ -15,10 +15,9 @@ from tqdm import tqdm
 import numpy as np
 import tensorflow as tf
 from las.utils import convert_idx_to_string, wer, edit_distance
-from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
-from data_loader import batch_gen
-from utils.text import text_encoder
+from utils.tokenizer import Subword_Encoder
+from las.arguments import parse_args
 
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'  # set your device id
@@ -44,36 +43,38 @@ print('=' * 60 )
 gpu_options = tf.GPUOptions(allow_growth=True)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
+# tfrecord
+eval_filenames = [
+    "data/tfrecord_bpe_5k/dev-1.tfrecord",
+]
+
 # load from previous output
 try:
-    logging.info("Load features...")
-    dev_feats = joblib.load(args.feat_dir+"/{}_feats.pkl".format(args.split))
-    dev_featlen = np.load(args.feat_dir+"/{}_featlen.npy".format(args.split), allow_pickle=True)
-    dev_tokens = np.load(args.feat_dir+"/{}_{}s.npy".format(args.split, args.unit), allow_pickle=True)
-    dev_tokenlen = np.load(args.feat_dir+"/{}_{}len.npy".format(args.split, args.unit), allow_pickle=True)
+    print("Load features...")
+    eval_iter, types, shapes = tfrecord_iterator(eval_filenames, training_parser, is_training=False)
+    num_eval_records = get_num_records(eval_filenames)
+    print('Number of train records in eval files: {}'.format(
+        num_eval_records))
 
 # process features
 except:
-    raise Exception("Run preprocess.py first")
+    raise Exception("Run preprocess.py, create_tfrecord.py first")
 
-# tokenizer 
-special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-tokenizer = text_encoder(args.unit, special_tokens)
-id_to_token = tokenizer.id_to_token
+# tokenize tools: Using subword unit.
+tokenizer = Subword_Encoder(args.subword_dir)
 args.vocab_size = tokenizer.get_vocab_size()
+id_to_token = tokenizer.id_to_token
 
 # init model 
 las =  LAS(args, Listener, Speller, id_to_token)
 
 # build batch iterator
 logging.info("Build batch iterator...")
-dev_iter, num_dev_batches = batch_gen(
-            dev_feats, dev_tokens, dev_featlen, dev_tokenlen, args.batch_size, args.feat_dim, True, is_training=False)
-dev_xs, dev_ys = dev_iter.get_next()
+eval_xs, eval_ys = eval_iter.get_next()
 
 # build train, inference graph 
 logging.info("Build train, inference graph (please wait)...")
-dev_logits, y_hat = las.inference(dev_xs)
+eval_logits, y_hat = las.inference(eval_xs)
 
 # saver
 saver = tf.train.Saver(max_to_keep=100)
@@ -85,7 +86,7 @@ if args.restore_epoch != -1:
 saver.restore(sess, ckpt)
 
 # init iterator and graph
-sess.run(dev_iter.initializer)
+sess.run(eval_iter.initializer)
 
 # info
 print('=' * 60)
@@ -98,9 +99,11 @@ gt_id = []
 texts_pred = []
 texts_gt = []
 
+num_eval_batches = 100
+
 # collect hypothesis
-for _ in tqdm(range(num_dev_batches)):
-    pred, gt = sess.run([y_hat, dev_ys])
+for _ in tqdm(range(num_eval_batches)):
+    pred, gt = sess.run([y_hat, eval_ys])
     output_id += pred.tolist()
     gt_id += gt[0].tolist()
 
