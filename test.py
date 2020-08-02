@@ -16,7 +16,7 @@ import numpy as np
 import tensorflow as tf
 from las.utils import convert_idx_to_string, wer, edit_distance
 from las.las import Listener, Speller, LAS
-from utils.tokenizer import Subword_Encoder
+from utils.tokenizer import SubwordEncoder, CharEncoder
 from las.arguments import parse_args
 
 
@@ -61,7 +61,7 @@ except:
     raise Exception("Run preprocess.py, create_tfrecord.py first")
 
 # tokenize tools: Using subword unit.
-tokenizer = Subword_Encoder(args.subword_dir)
+tokenizer = SubwordEncoder(args.subword_dir)
 args.vocab_size = tokenizer.get_vocab_size()
 id_to_token = tokenizer.id_to_token
 

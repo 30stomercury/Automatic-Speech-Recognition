@@ -14,7 +14,7 @@ import joblib
 import numpy as np
 import tensorflow as tf
 from las.beam_search import BeamSearch
-from utils.text import text_encoder
+from utils.tokenizer import SubwordEncoder, CharEncoder
 from las.utils import convert_idx_to_string, wer, edit_distance
 from las.arguments import parse_args
 from las.las import Listener, Speller, LAS  # load las
@@ -92,11 +92,12 @@ try:
 except:
     raise Exception("Run preprocess.py first")
 
-# tokenizer
-special_tokens = ['<PAD>', '<SOS>', '<EOS>', '<SPACE>']
-tokenizer = text_encoder(args.unit, special_tokens)
-id_to_token, token_to_id = tokenizer.id_to_token, tokenizer.token_to_id
+
+# tokenize tools: Using subword unit.
+tokenizer = SubwordEncoder(args.subword_dir)
 args.vocab_size = tokenizer.get_vocab_size()
+id_to_token = tokenizer.id_to_token
+
 
 # init model 
 las =  LAS(args, Listener, Speller, token_to_id)
