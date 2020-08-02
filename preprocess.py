@@ -197,11 +197,11 @@ if __name__ == '__main__':
 
     if args.unit == 'char':
         logging.info('Using {} tokenizer.'.format(args.unit))
-        tokenizer = Char_Encoder()
+        tokenizer = CharEncoder()
 
     elif args.unit == 'subword':
         logging.info('Using {} tokenizer: {}'.format(args.unit, args.subword_dir))
-        tokenizer = Subword_Encoder(args.subword_dir)
+        tokenizer = SubwordEncoder(args.subword_dir)
 
 
     assert args.dataset == 'LibriSpeech'
