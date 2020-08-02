@@ -110,6 +110,23 @@ def parse_args():
                         type=int,
                         default=2,
                         help='The number of layers of pBLSTM in Listener.')
+    # hparams of Attention
+    parser.add_argument('--attention_size',
+                        type=int,
+                        default=128,
+                        help='Attention size.')
+    parser.add_argument('--loc_kernel_size',
+                        type=int,
+                        default=10,
+                        help='Kernel size in location-aware attention.')
+    parser.add_argument('--loc_num_channels',
+                        type=int,
+                        default=201,
+                        help='Number of channels in location-aware attention')
+    parser.add_argument('--mode',
+                        type=str,
+                        default='add',
+                        help='Additive attention or loction-aware attention.')
     # hparams of Speller
     parser.add_argument('--dec_units',
                         type=int,
@@ -123,10 +140,6 @@ def parse_args():
                         type=int,
                         default=128,
                         help='The dimension of the embedding matrix is: [vocab_size, embedding_size].')
-    parser.add_argument('--attention_size',
-                        type=int,
-                        default=128,
-                        help='Attention size.')
     parser.add_argument('--warmup_step',
                         type=int,
                         default=500000,
