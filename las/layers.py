@@ -53,7 +53,7 @@ def blstm(inputs, cell_units, dropout_rate, is_training):
                                                       time_major=False)
     return outputs, states
 
-def PBLSTMLayer(inputs, audiolen, num_layers, cell_units, dropout_rate, is_training):
+def pBLSTMLayer(inputs, audiolen, num_layers, cell_units, dropout_rate, is_training):
     """Pyramidal BLSTM
     blstm ->
     projection/tanh ->
@@ -107,7 +107,11 @@ def conv2d(inputs, output_dim, k_h=3, k_w=3, d_h=2, d_w=2, stddev=1, name="conv2
 
         return conv
 
-def CNNLayer(inputs, audiolen,  feat_dim, cell_units, num_channel, dropout_rate, is_training):
+def bn(inputs, is_training):
+
+    return tf.layers.batch_normalization(inputs, training=is_training)
+
+def CNNLayer(inputs, audiolen, num_enc_layers, feat_dim, cell_units, num_channel, dropout_rate, is_training):
     """CNN networks 
     cnn/batch-norm/relu ->
     cnn/batch-norm/relu ->
@@ -136,7 +140,7 @@ def CNNLayer(inputs, audiolen,  feat_dim, cell_units, num_channel, dropout_rate,
     enc_out = tf.reshape(conv_out, [shape[0], -1, int(feat_dim*num_channel)])
 
     # blstm layers
-    for i in range(self.args.num_enc_layers):
+    for i in range(num_enc_layers):
         with tf.variable_scope('blstm_{}'.format(i)):
             enc_out, enc_state = blstm(enc_out, cell_units, dropout_rate, is_training)
             enc_out = tf.concat(enc_out, -1)        
@@ -212,7 +216,7 @@ class AdditiveAttention(BaseAttention):
         att_size: attention size.
     """
 
-    def __init__(self, h_dim, s_dim, att_size, smoothing):
+    def __init__(self, h_dim, s_dim, att_size, smoothing=False):
         super().__init__(att_size, smoothing)
         self.h_dim = h_dim
         self.s_dim = s_dim
@@ -225,21 +229,22 @@ class AdditiveAttention(BaseAttention):
             align: (B, T), needless, for completeness.
             seq_len: timesteps of sequences.
         """
+        with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
+            hidden.set_shape([None, None, self.h_dim])
+            state = tf.reshape(state, [-1, 1, self.s_dim])
 
-        h.set_shape([None, None, self.h_dim])
-        state = tf.reshape(state, [None, 1, self.s_dim])
-
-        # Trainable parameters
-        u = tf.Variable(tf.random_uniform([attention_size], minval=-1, maxval=1, dtype=tf.float32))
-        v = tf.nn.tanh(
-                tf.layers.dense(hidden, attention_size, use_bias=False) + \
-                tf.layers.dense(state, attention_size, use_bias=False))
-        energy = tf.tensordot(v, u, axes=1)
+            # Trainable parameters
+            with tf.control_dependencies(None):
+                u = tf.Variable(tf.random_uniform([self.att_size], minval=-1, maxval=1, dtype=tf.float32))
+            v = tf.nn.tanh(
+                    tf.layers.dense(hidden, self.att_size, use_bias=False) + \
+                    tf.layers.dense(state, self.att_size, use_bias=False))
+            energy = tf.tensordot(v, u, axes=1)
 
 
-        context, alphas = self.attend(hidden, energy, seqlen)
+            context, alphas = self.attend(hidden, energy, seqlen)
 
-        return context, alphas
+            return context, alphas
 
 class LocationAwareAttention(BaseAttention):
     """Location-aware attention
@@ -272,23 +277,25 @@ class LocationAwareAttention(BaseAttention):
             seq_len: timesteps of sequences.
         """
 
-        h.set_shape([None, None, self.h_dim])
-        state = tf.reshape(state, [-1, 1, self.s_dim])
+        with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
+            h.set_shape([None, None, self.h_dim])
+            state = tf.reshape(state, [-1, 1, self.s_dim])
 
-        # conv location: eq (8)
-        f = tf.layers.conv1d(tf.expand_dims(align, 2),
-                             filters=self.num_chanel, kernel_size=self.kernel_size, strides=1, padding='SAME')
+            # conv location: eq (8)
+            f = tf.layers.conv1d(tf.expand_dims(align, 2),
+                                 filters=self.num_chanel, kernel_size=self.kernel_size, strides=1, padding='SAME')
 
-        u = tf.Variable(tf.random_uniform([attention_size], minval=-1, maxval=1, dtype=tf.float32))
+            with tf.control_dependencies(None):
+                u = tf.Variable(tf.random_uniform([self.att_size], minval=-1, maxval=1, dtype=tf.float32))
 
-        # eq (9)
-        v = tf.nn.tanh(
-                tf.layers.dense(h, attention_size, use_bias=False) + \
-                tf.layers.dense(state, attention_size, use_bias=False) + \
-                tf.layers.dense(f, attention_size, use_bias=False))
-        energy = tf.tensordot(v, u, axes=1)
+            # eq (9)
+            v = tf.nn.tanh(
+                    tf.layers.dense(h, attention_size, use_bias=False) + \
+                    tf.layers.dense(state, attention_size, use_bias=False) + \
+                    tf.layers.dense(f, attention_size, use_bias=False))
+            energy = tf.tensordot(v, u, axes=1)
 
 
-        context, alphas = self.attend(hidden, energy, seqlen)
+            context, alphas = self.attend(hidden, energy, seqlen)
 
-        return context, alphas
+            return context, alphas

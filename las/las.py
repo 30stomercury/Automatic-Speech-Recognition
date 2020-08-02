@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from las.utils import *
-from las.layers import AdditiveAttention, LocationAwareAttention
+from las.utils import label_smoothing, convert_idx_to_token_tensor
+from las.layers import AdditiveAttention, LocationAwareAttention, pBLSTMLayer, CNNLayer
 
 class Listener:
 
@@ -12,20 +12,19 @@ class Listener:
         with tf.variable_scope("Listener", reuse=tf.AUTO_REUSE):
             if encoder == 'pblstm':
                 inputs = tf.reshape(inputs, [tf.shape(inputs)[0], -1, self.args.feat_dim*3])
-                enc_out, enc_state, enc_len = pblstm(inputs, 
-                                                     audiolen, 
-                                                     self.args.num_enc_layers, 
-                                                     self.args.enc_units, 
-                                                     self.args.dropout_rate, is_training)
+                enc_out, enc_state, enc_len = pBLSTMLayer(inputs, 
+                                                          audiolen, 
+                                                          self.args.num_enc_layers, 
+                                                          self.args.enc_units, 
+                                                          self.args.dropout_rate, is_training)
             elif encoder == 'cnn':
-                #   NETWORK:
-                #   cnn/batch-norm/relu ->
-                #   cnn/batch-norm/relu ->
-                #   bidirectional lstm ->
-                #   projection/batch-norm/relu ->
-                #   bidirectional lstm ->
-                #   projection/batch-norm/relu ->
-
+                enc_out, enc_state, enc_len = CNNLayer(inputs, 
+                                                       audiolen,
+                                                       self.args.num_enc_layers, 
+                                                       self.args.feat_dim,
+                                                       self.args.enc_units, 
+                                                       32, self.args.dropout_rate, is_training)
+                """
                 # cnn layers
                 feat_dim = self.args.feat_dim
                 num_channel = 32
@@ -56,6 +55,10 @@ class Listener:
                         enc_out = tf.nn.relu(bn(enc_out, is_training))
 
                 enc_len = audiolen
+                """
+
+            else:
+                raise NotImplementedError
 
             return enc_out, enc_state, enc_len
 
@@ -85,11 +88,11 @@ class Speller:
         self.hidden_size = self.args.enc_units  # => output dimension of encoder h
         self._build_decoder_cell()
         self._build_char_embeddings()
-        self.att_layer = Attention(h_dim=self.hidden_size,     # TODO move kernel_size, num_channels to args.py
+        self.att_layer = Attention(h_dim=self.hidden_size,                      # TODO move kernel_size, num_channels to args.py
                                    s_dim=self.args.dec_units*self.args.num_dec_layers,
                                    att_size=self.args.attention_size,
-                                   kernel_size=100*2+1,        # Refer to section 4.2 
-                                   num_channels=10,            # in https://arxiv.org/pdf/1506.07503.pdf
+                                   kernel_size=self.args.loc_kernel_size,       # Refer to section 4.2 
+                                   num_channels=self.args.loc_num_channels,     # in https://arxiv.org/pdf/1506.07503.pdf
                                    mode=self.args.mode)
 
     def __call__(self, enc_out, enc_len, dec_steps, teacher=None, is_training=True):
@@ -173,7 +176,7 @@ class Speller:
             s_i = self._get_hidden_state(dec_state)
             context, alphas = self.att_layer(hidden=enc_out, 
                                              state=s_i, 
-                                             align=prev_align
+                                             align=prev_align,
                                              seqlen=enc_len)
             dec_in = tf.concat([prev_char, context], -1) # dim = h dim + embedding dim
             dec_out, dec_state = self.dec_cell(
@@ -234,7 +237,7 @@ class Speller:
 
 class LAS:
 
-    def __init__(self, args, Listener, Speller, id_to_token)
+    def __init__(self, args, Listener, Speller, id_to_token):
         '''Consturct Listen attend ande spell objects.
 
         Args:
