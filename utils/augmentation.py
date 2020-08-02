@@ -3,7 +3,7 @@ import os
 import numpy as np
 from tqdm import tqdm
 
-def speed_augmentation(filelist, target_folder, speed):
+def SpeedAugmentation(filelist, target_folder, speed):
     """Speed Augmentation
     
     Args:
@@ -11,6 +11,7 @@ def speed_augmentation(filelist, target_folder, speed):
         target_folder: Folder of augmented audios.
         speed: Speed for augmentation.
     """
+    
     audio_path = []
     aug_generator = sox.Transformer()
     print("Total audios:", len(filelist))
@@ -29,7 +30,7 @@ def speed_augmentation(filelist, target_folder, speed):
 
     return audio_path
 
-def volume_augmentation(filelist, target_folder, vol_range):
+def VolumeAugmentation(filelist, target_folder, vol_range):
     """Volume Augmentation
     
     Args:
@@ -37,6 +38,7 @@ def volume_augmentation(filelist, target_folder, vol_range):
         target_folder: Folder of augmented audios.
         volume_range: Range of volumes for augmentation.
     """
+
     audio_path = []
     aug_generator = sox.Transformer()
     print("Total audios:", len(filelist))

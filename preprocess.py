@@ -9,10 +9,9 @@ from tqdm import tqdm
 import soundfile as sf
 import speechpy
 import numpy as np
-from utils.tokenizer import Subword_Encoder, Char_Encoder
 from las.arguments import parse_args
-from utils.tokenizer import Subword_Encoder, Char_Encoder
-from utils.augmentation import speed_augmentation, volume_augmentation
+from utils.tokenizer import SubwordEncoder, CharEncoder
+from utils.augmentation import SpeedAugmentation, VolumeAugmentation
 
 # When number of audios in a set (usually training set) > threshold, divide set into several parts to avoid memory error.
 _SAMPLE_THRESHOLD = 50000
