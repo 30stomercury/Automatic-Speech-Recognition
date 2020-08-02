@@ -117,11 +117,11 @@ def parse_args():
                         help='Attention size.')
     parser.add_argument('--loc_kernel_size',
                         type=int,
-                        default=10,
+                        default=201,
                         help='Kernel size in location-aware attention.')
     parser.add_argument('--loc_num_channels',
                         type=int,
-                        default=201,
+                        default=10,
                         help='Number of channels in location-aware attention')
     parser.add_argument('--mode',
                         type=str,
