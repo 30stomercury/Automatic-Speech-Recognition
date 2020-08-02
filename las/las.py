@@ -24,38 +24,6 @@ class Listener:
                                                        self.args.feat_dim,
                                                        self.args.enc_units, 
                                                        32, self.args.dropout_rate, is_training)
-                """
-                # cnn layers
-                feat_dim = self.args.feat_dim
-                num_channel = 32
-                conv_out = inputs 
-                for i in range(2):
-                    # time & feat_dim reduction
-                    feat_dim = (feat_dim + feat_dim % 2) / 2
-                    audiolen = (audiolen + audiolen % 2) / 2
-
-                    # output_shape = [None, audiolen, feat_dim, num_channel]
-                    conv_out = conv2d(conv_out, 
-                                      num_channel, 
-                                      name="conv2d_{}".format(i), is_training=is_training)
-
-                # reshape to [B, L/4, feat_dim/4 * 32]
-                shape = tf.shape(conv_out)
-                enc_out = tf.reshape(conv_out, [shape[0], -1, int(feat_dim*num_channel)])
-
-                # blstm layers
-                for i in range(self.args.num_enc_layers):
-                    with tf.variable_scope('blstm_{}'.format(i)):
-                        enc_out, enc_state = blstm(enc_out, self.args.enc_units, self.args.dropout_rate, is_training)
-                        enc_out = tf.concat(enc_out, -1)        
-                        enc_out = tf.layers.dense(
-                                         enc_out,
-                                         self.args.enc_units, 
-                                         use_bias=True)
-                        enc_out = tf.nn.relu(bn(enc_out, is_training))
-
-                enc_len = audiolen
-                """
 
             else:
                 raise NotImplementedError
