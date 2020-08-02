@@ -17,10 +17,10 @@ import tensorflow as tf
 from las.utils import convert_idx_to_string, get_save_vars
 from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
-from utils.tokenizer import Subword_Encoder
+from utils.tokenizer import SubwordEncoder, CharEncoder
 from tfrecord_data_loader import tfrecord_iterator, data_parser, get_num_records
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '2' # set your device id
+os.environ['CUDA_VISIBLE_DEVICES'] = '1' # set your device id
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
@@ -63,7 +63,7 @@ except:
 
 
 # tokenize tools: Using subword unit.
-tokenizer = Subword_Encoder(args.subword_dir)
+tokenizer = SubwordEncoder(args.subword_dir)
 args.vocab_size = tokenizer.get_vocab_size()
 id_to_token = tokenizer.id_to_token
 

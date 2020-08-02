@@ -9,10 +9,9 @@ from tqdm import tqdm
 import soundfile as sf
 import speechpy
 import numpy as np
-from utils.tokenizer import Subword_Encoder, Char_Encoder
 from las.arguments import parse_args
-from utils.tokenizer import Subword_Encoder, Char_Encoder
-from utils.augmentation import speed_augmentation, volume_augmentation
+from utils.tokenizer import SubwordEncoder, CharEncoder
+from utils.augmentation import SpeedAugmentation, VolumeAugmentation
 
 # When number of audios in a set (usually training set) > threshold, divide set into several parts to avoid memory error.
 _SAMPLE_THRESHOLD = 50000
@@ -197,11 +196,11 @@ if __name__ == '__main__':
 
     if args.unit == 'char':
         logging.info('Using {} tokenizer.'.format(args.unit))
-        tokenizer = Char_Encoder()
+        tokenizer = CharEncoder()
 
     elif args.unit == 'subword':
         logging.info('Using {} tokenizer: {}'.format(args.unit, args.subword_dir))
-        tokenizer = Subword_Encoder(args.subword_dir)
+        tokenizer = SubwordEncoder(args.subword_dir)
 
 
     assert args.dataset == 'LibriSpeech'

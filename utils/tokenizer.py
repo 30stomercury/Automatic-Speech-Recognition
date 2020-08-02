@@ -40,7 +40,7 @@ def train_subword_tokenizer(size, special_tokens, path):
     )
     tokenizer.save(path, "bpe")
 
-class Subword_Encoder:
+class SubwordEncoder:
     "Subword tokenization" 
 
     def __init__(self, path='subword/'):
@@ -84,7 +84,7 @@ class Subword_Encoder:
             subword2id[self.subword_tokenizer.id_to_token(i)] = i
         return subword2id
 
-class Char_Encoder:
+class CharEncoder:
     "Char tokenizarion"
 
     def __init__(self):

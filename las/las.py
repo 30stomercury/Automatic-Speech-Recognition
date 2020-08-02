@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from las.utils import *
+from las.utils import label_smoothing, convert_idx_to_token_tensor
+from las.layers import AdditiveAttention, LocationAwareAttention, pBLSTMLayer, CNNLayer
 
 class Listener:
 
@@ -11,20 +12,19 @@ class Listener:
         with tf.variable_scope("Listener", reuse=tf.AUTO_REUSE):
             if encoder == 'pblstm':
                 inputs = tf.reshape(inputs, [tf.shape(inputs)[0], -1, self.args.feat_dim*3])
-                enc_out, enc_state, enc_len = pblstm(inputs, 
-                                                     audiolen, 
-                                                     self.args.num_enc_layers, 
-                                                     self.args.enc_units, 
-                                                     self.args.dropout_rate, is_training)
+                enc_out, enc_state, enc_len = pBLSTMLayer(inputs, 
+                                                          audiolen, 
+                                                          self.args.num_enc_layers, 
+                                                          self.args.enc_units, 
+                                                          self.args.dropout_rate, is_training)
             elif encoder == 'cnn':
-                #   NETWORK:
-                #   cnn/batch-norm/relu ->
-                #   cnn/batch-norm/relu ->
-                #   bidirectional lstm ->
-                #   projection/batch-norm/relu ->
-                #   bidirectional lstm ->
-                #   projection/batch-norm/relu ->
-
+                enc_out, enc_state, enc_len = CNNLayer(inputs, 
+                                                       audiolen,
+                                                       self.args.num_enc_layers, 
+                                                       self.args.feat_dim,
+                                                       self.args.enc_units, 
+                                                       32, self.args.dropout_rate, is_training)
+                """
                 # cnn layers
                 feat_dim = self.args.feat_dim
                 num_channel = 32
@@ -55,8 +55,31 @@ class Listener:
                         enc_out = tf.nn.relu(bn(enc_out, is_training))
 
                 enc_len = audiolen
+                """
+
+            else:
+                raise NotImplementedError
 
             return enc_out, enc_state, enc_len
+
+
+class Attention:
+
+    def __init__(self, h_dim, s_dim, att_size, kernel_size, num_channels, mode='add'):
+        self.mode = mode
+
+        if self.mode == 'add':
+            self.att_layer = AdditiveAttention(h_dim, s_dim, att_size)
+        elif self.mode == 'loc':
+            self.att_layer = LocationAwareAttention(
+                    h_dim, s_dim, att_size, kernel_size, num_channels)
+        else:
+            raise NotImplementedError
+
+    def __call__(self, hidden, state, align, seqlen):
+
+        return self.att_layer(hidden, state, align, seqlen)
+
 
 class Speller:
 
@@ -65,6 +88,12 @@ class Speller:
         self.hidden_size = self.args.enc_units  # => output dimension of encoder h
         self._build_decoder_cell()
         self._build_char_embeddings()
+        self.att_layer = Attention(h_dim=self.hidden_size,                      # TODO move kernel_size, num_channels to args.py
+                                   s_dim=self.args.dec_units*self.args.num_dec_layers,
+                                   att_size=self.args.attention_size,
+                                   kernel_size=self.args.loc_kernel_size,       # Refer to section 4.2 
+                                   num_channels=self.args.loc_num_channels,     # in https://arxiv.org/pdf/1506.07503.pdf
+                                   mode=self.args.mode)
 
     def __call__(self, enc_out, enc_len, dec_steps, teacher=None, is_training=True):
         with tf.variable_scope("Speller", reuse=tf.AUTO_REUSE):
@@ -88,8 +117,14 @@ class Speller:
 
             # define loop
             def iteration(t, rnn_state, prev_char, output, alphas):
-                cur_char, rnn_state, alphas_ = \
-                        self.decode(enc_out, enc_len, rnn_state, prev_char, is_training)
+                #cur_char, rnn_state, alphas_ = \
+                #        self.decode(enc_out, enc_len, rnn_state, prev_char, is_training)
+                cur_char, rnn_state, alphas_ = self.decode(enc_out, 
+                                                           enc_len, 
+                                                           rnn_state, 
+                                                           prev_char, 
+                                                           alphas[:, -1, :],            # previous alignment
+                                                           is_training)
                 if is_training:
                     condition = tf_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
 
@@ -135,16 +170,14 @@ class Speller:
 
             return logits, ctc_logits, alphas
 
-    def decode(self, enc_out, enc_len, dec_state, prev_char, is_training):
+    def decode(self, enc_out, enc_len, dec_state, prev_char, prev_align, is_training):
         """One decode step."""
         with tf.variable_scope("decode", reuse=tf.AUTO_REUSE):
             s_i = self._get_hidden_state(dec_state)
-            context, alphas = attention(h=enc_out, 
-                                        state=s_i, 
-                                        h_dim=self.hidden_size, 
-                                        s_dim=self.args.dec_units*self.args.num_dec_layers,
-                                        attention_size=self.args.attention_size,
-                                        seq_len=enc_len)
+            context, alphas = self.att_layer(hidden=enc_out, 
+                                             state=s_i, 
+                                             align=prev_align,
+                                             seqlen=enc_len)
             dec_in = tf.concat([prev_char, context], -1) # dim = h dim + embedding dim
             dec_out, dec_state = self.dec_cell(
                             dec_in, dec_state)
@@ -209,8 +242,9 @@ class LAS:
 
         Args:
             args:     Include model/train/inference parameters that are packed in arguments.py
-            listener: The encoder built in pyramid rnn.
-            speller:  The decoder with an attention layer.
+            Listener: The encoder built in pyramid rnn.
+            Attention: The Attention layer.
+            Speller:  The decoder with an attention layer.
         '''
 
         self.args = args
