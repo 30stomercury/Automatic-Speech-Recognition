@@ -53,7 +53,7 @@ python3 train.py --lr 0.0001 \
 		 --attention_size 128 \
 		 --num_enc_layers 4 \
 		 --num_dec_layers 2 \
-		 --mode loc
+		 --mode loc \
 		 --dropout_rate 0 \
 		 --grad_clip 5 \
 		 --schduled_sampling False \
