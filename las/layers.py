@@ -96,10 +96,10 @@ def pBLSTMLayer(inputs, audiolen, num_layers, cell_units, dropout_rate, is_train
 def conv2d(inputs, output_dim, k_h=3, k_w=3, d_h=2, d_w=2, stddev=1, name="conv2d", is_training=True):
     with tf.variable_scope(name) as scope:
         init = tf.random.normal(
-                [k_h, k_w, inputs.get_shape().as_list()[-1], output_dim], stddev=stddev)*0.001
+                [k_h, k_w, inputs.get_shape().as_list()[-1], output_dim], stddev=stddev)*0.01
         w = tf.get_variable('w', initializer=init)
         b = tf.get_variable(
-            'b', [output_dim], initializer=tf.constant_initializer(0.1))
+            'b', [output_dim], initializer=tf.constant_initializer(0.01))
         conv = tf.nn.conv2d(inputs, w, strides=[1, d_h, d_w, 1], padding='SAME')
         conv += b
         conv = bn(conv, is_training)
@@ -278,21 +278,21 @@ class LocationAwareAttention(BaseAttention):
         """
 
         with tf.variable_scope('attention', reuse=tf.AUTO_REUSE):
-            h.set_shape([None, None, self.h_dim])
+            hidden.set_shape([None, None, self.h_dim])
             state = tf.reshape(state, [-1, 1, self.s_dim])
 
             # conv location: eq (8)
             f = tf.layers.conv1d(tf.expand_dims(align, 2),
-                                 filters=self.num_chanel, kernel_size=self.kernel_size, strides=1, padding='SAME')
+                                 filters=self.num_channels, kernel_size=self.kernel_size, strides=1, padding='SAME')
 
             with tf.control_dependencies(None):
                 u = tf.Variable(tf.random_uniform([self.att_size], minval=-1, maxval=1, dtype=tf.float32))
 
             # eq (9)
             v = tf.nn.tanh(
-                    tf.layers.dense(h, attention_size, use_bias=False) + \
-                    tf.layers.dense(state, attention_size, use_bias=False) + \
-                    tf.layers.dense(f, attention_size, use_bias=False))
+                    tf.layers.dense(hidden, self.att_size, use_bias=False) + \
+                    tf.layers.dense(state, self.att_size, use_bias=False) + \
+                    tf.layers.dense(f, self.att_size, use_bias=False))
             energy = tf.tensordot(v, u, axes=1)
 
 
