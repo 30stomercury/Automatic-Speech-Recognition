@@ -55,7 +55,7 @@ class Speller:
         self.args = args
         self.hidden_size = self.args.enc_units  # => output dimension of encoder h
         self._build_decoder_cell()
-        self._build_char_embeddings()
+        self._build_embeddings()
         self.att_layer = Attention(h_dim=self.hidden_size,                      # TODO move kernel_size, num_channels to args.py
                                    s_dim=self.args.dec_units*self.args.num_dec_layers,
                                    att_size=self.args.attention_size,
@@ -72,45 +72,45 @@ class Speller:
             else:
                 ctc_logits = None
 
-            init_char = self._look_up(tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
+            init_token = self._look_up(tf.ones(tf.shape(enc_out)[0], dtype=tf.int32))
             init_state = self.dec_cell.zero_state(tf.shape(enc_out)[0], tf.float32)
             init_t = tf.constant(0, dtype=tf.int32)
             init_output = tf.zeros([tf.shape(enc_out)[0], 1, self.args.vocab_size])
             init_alphas = tf.zeros([tf.shape(enc_out)[0], 1, tf.shape(enc_out)[1]])
 
-            if is_training:
+            if is_training and self.args.scheduled_sampling:
                 tf_rate = self._scheduled_sampling()
             else:
                 tf_rate = 0
 
             # define loop
-            def iteration(t, rnn_state, prev_char, output, alphas):
-                #cur_char, rnn_state, alphas_ = \
-                #        self.decode(enc_out, enc_len, rnn_state, prev_char, is_training)
-                cur_char, rnn_state, alphas_ = self.decode(enc_out, 
+            def iteration(t, rnn_state, prev_token, output, alphas):
+                #cur_token, rnn_state, alphas_ = \
+                #        self.decode(enc_out, enc_len, rnn_state, prev_token, is_training)
+                cur_token, rnn_state, alphas_ = self.decode(enc_out, 
                                                            enc_len, 
                                                            rnn_state, 
-                                                           prev_char, 
+                                                           prev_token,                   # previous token
                                                            alphas[:, -1, :],            # previous alignment
                                                            is_training)
                 if is_training:
                     condition = tf_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
 
-                    prev_char = tf.cond(condition,
+                    prev_token = tf.cond(condition,
                                         lambda: self._look_up(teacher[:, t]),           # => teacher forcing
-                                        lambda: self._sample_char(cur_char))            # => or you can use argmax
+                                        lambda: self._sample_token(cur_token))            # => or you can use argmax
                                                
-                    prev_char = tf.layers.dropout(
-                                prev_char, self.args.dropout_rate, training=is_training)
-                    prev_char.set_shape([None, self.args.embedding_size])
+                    prev_token = tf.layers.dropout(
+                                prev_token, self.args.dropout_rate, training=is_training)
+                    prev_token.set_shape([None, self.args.embedding_size])
                 else:
-                    prev_char = self._look_up(tf.argmax(cur_char, -1))                  # => inference mode, greedy decoder.
+                    prev_token = self._look_up(tf.argmax(cur_token, -1))                  # => inference mode, greedy decoder.
 
-                cur_char = tf.expand_dims(cur_char, 1)
-                output = tf.concat([output, cur_char], 1)
+                cur_token = tf.expand_dims(cur_token, 1)
+                output = tf.concat([output, cur_token], 1)
                 alphas = tf.concat([alphas, tf.expand_dims(alphas_, 1)], 1)
 
-                return t + 1, rnn_state, prev_char, output, alphas
+                return t + 1, rnn_state, prev_token, output, alphas
 
             # stop criteria
             def is_stop(t, *args):
@@ -125,20 +125,20 @@ class Speller:
 
             shape_invariant = [init_t.get_shape(), 
                                shape_state,
-                               init_char.get_shape(), 
+                               init_token.get_shape(), 
                                tf.TensorShape([None, None, self.args.vocab_size]),
                                tf.TensorShape([None, None, None])]
 
-            t, dec_state, prev_char, output, alphas = \
+            t, dec_state, prev_token, output, alphas = \
                         tf.while_loop(is_stop, iteration, 
-                            [init_t, init_state, init_char, init_output, init_alphas], shape_invariant)
+                            [init_t, init_state, init_token, init_output, init_alphas], shape_invariant)
             
             logits = output[:, 1:, :]
             alphas = alphas[:, 1:, :]
 
             return logits, ctc_logits, alphas
 
-    def decode(self, enc_out, enc_len, dec_state, prev_char, prev_align, is_training):
+    def decode(self, enc_out, enc_len, dec_state, prev_token, prev_align, is_training):
         """One decode step."""
         with tf.variable_scope("decode", reuse=tf.AUTO_REUSE):
             s_i = self._get_hidden_state(dec_state)
@@ -146,30 +146,29 @@ class Speller:
                                              state=s_i, 
                                              align=prev_align,
                                              seqlen=enc_len)
-            dec_in = tf.concat([prev_char, context], -1) # dim = h dim + embedding dim
+            dec_in = tf.concat([prev_token, context], -1) # dim = h dim + embedding dim
             dec_out, dec_state = self.dec_cell(
                             dec_in, dec_state)
-            cur_char = tf.layers.dense(
+            cur_token = tf.layers.dense(
                             dec_out, 
                             self.args.vocab_size, use_bias=True)
 
-            return cur_char, dec_state, alphas
+            return cur_token, dec_state, alphas
 
-    def _look_up(self, char):
+    def _look_up(self, token):
         """lookup from pre-definded embedding"""
-        
         if self.args.add_vn:
             self.embedding_matrix += \
                         0.1*tf.random.normal(tf.shape(self.embedding_matrix), stddev=0.075)
 
-        return tf.nn.embedding_lookup(self.embedding_matrix, char)
+        return tf.nn.embedding_lookup(self.embedding_matrix, token)
 
-    def _sample_char(self, char):
-        """Sample charactor from char distribution."""
-        dist = tf.distributions.Categorical(logits=char)
-        sampled_char = dist.sample(int(1))[0]
+    def _sample_token(self, token):
+        """Sample token from token distribution."""
+        dist = tf.distributions.Categorical(logits=token)
+        sampled_token = dist.sample(int(1))[0]
 
-        return self._look_up(sampled_char)
+        return self._look_up(sampled_token)
 
     def _scheduled_sampling(self):
         """Scheduled sampling with linear decay."""
@@ -195,7 +194,7 @@ class Speller:
         else:
             self.dec_cell = rnn_cell()
 
-    def _build_char_embeddings(self):
+    def _build_embeddings(self):
         with tf.variable_scope('embedding', reuse=tf.AUTO_REUSE):
             embedding_matrix = tf.get_variable(
                 name='embedding_matrix',
@@ -229,7 +228,7 @@ class LAS:
                 - audiolen: (B,), original feature length.
             ys: 
                 - y:        (B, T2), T2: output time steps.
-                - tokenlen: (B,), original character length.
+                - tokenlen: (B,), original token length.
 
         Returns: 
             loss
