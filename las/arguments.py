@@ -140,10 +140,14 @@ def parse_args():
                         type=int,
                         default=128,
                         help='The dimension of the embedding matrix is: [vocab_size, embedding_size].')
+    parser.add_argument('--scheduled_sampling', 
+                        type=str2bool, 
+                        default=True, 
+                        help='Apply schduled sampling.')
     parser.add_argument('--warmup_step',
                         type=int,
                         default=500000,
-                        help='Warmup step while training. During warmup step, teacher forcing rate is set to 1.')
+                        help='Warmup step before applying scheduled sampling while training. During warmup step, teacher forcing rate is set to 1.')
     parser.add_argument('--max_step',
                         type=int,
                         default=500000,
@@ -152,10 +156,6 @@ def parse_args():
                         type=float,
                         default=0.7,
                         help='Max step in scheduled sampling.')
-    parser.add_argument('--teacher_forcing_rate',
-                        type=float,
-                        default=0.9,
-                        help='Apply teacher forcing in decoder while training with constant sample rate.')
     # beam search
     parser.add_argument('--convert_rate',
                         type=float,
