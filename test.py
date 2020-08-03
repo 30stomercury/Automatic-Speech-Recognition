@@ -17,6 +17,7 @@ import tensorflow as tf
 from las.utils import convert_idx_to_string, wer, edit_distance
 from las.las import Listener, Speller, LAS
 from utils.tokenizer import SubwordEncoder, CharEncoder
+from tfrecord_data_loader import tfrecord_iterator, data_parser, get_num_records
 from las.arguments import parse_args
 
 
@@ -51,7 +52,7 @@ eval_filenames = [
 # load from previous output
 try:
     print("Load features...")
-    eval_iter, types, shapes = tfrecord_iterator(eval_filenames, training_parser, is_training=False)
+    eval_iter, types, shapes = tfrecord_iterator(eval_filenames, data_parser, is_training=False)
     num_eval_records = get_num_records(eval_filenames)
     print('Number of train records in eval files: {}'.format(
         num_eval_records))
@@ -99,7 +100,7 @@ gt_id = []
 texts_pred = []
 texts_gt = []
 
-num_eval_batches = 100
+num_eval_batches = 45
 
 # collect hypothesis
 for _ in tqdm(range(num_eval_batches)):
