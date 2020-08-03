@@ -124,4 +124,7 @@ for prefix in ["dev", "test"]:
 
     assert len(eval_feats) == len(eval_tokens)
 
+    X = eval_feats
+    y = eval_tokens
+
     create_tfrecords(X, y, args.save_dir+prefix, 1)

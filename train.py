@@ -15,10 +15,10 @@ import joblib
 import numpy as np
 import tensorflow as tf
 from las.utils import convert_idx_to_string, get_save_vars
-from las.arguments import parse_args
 from las.las import Listener, Speller, LAS
 from utils.tokenizer import SubwordEncoder, CharEncoder
 from tfrecord_data_loader import tfrecord_iterator, data_parser, get_num_records
+from las.arguments import parse_args
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1' # set your device id
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'

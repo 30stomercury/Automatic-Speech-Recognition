@@ -116,7 +116,7 @@ Results trained on LibriSpeech-360 (WER)
 
 ## TODO
 - [X] Add scheduled sampling.
-- [X] Add other attention mechanisms such as location attention.
+- [X] Add location-aware attention.
 - [ ] Evaluate the performance with subword unit: Subword las training. 
 - [ ] Decoding with subword-based RNNLM. 
 - [ ] Evaluate the performance on joint CTC training, decoding.

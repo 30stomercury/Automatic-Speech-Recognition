@@ -5,6 +5,7 @@ feat_type="mfcc"
 # save dir
 subword_dir="subword/bpe_5k/"
 feat_dir="data/features_mfcc_bpe_5k/"
+tfrecord_dir="data/tfrecord_mfcc_bpe_5k/"
 model_dir="model/las/"
 summary_dir="summary/summary/"
 
@@ -39,8 +40,10 @@ python3 preprocess.py --unit $unit \
 
 echo "$0: TFrecord Preparation"
 python3 create_tfrecord.py --unit $unit \
-			   --feat_dir $feat_dir
+			   --feat_dir $feat_dir \
+			   --save_dir $tfrecord_dir
 
+echo "$0: LAS Training"
 python3 train.py --lr 0.0001 \
 		 --epoch 3000 \
 		 --feat_dim 13 \
