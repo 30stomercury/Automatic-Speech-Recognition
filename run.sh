@@ -1,6 +1,16 @@
+# setup
 unit="subword"
 size=5000
 feat_type="mfcc"
+
+# train
+epoch=100
+
+# inference
+split="dev"
+restore=100
+convert_rate=0.12
+beam_size=8
 
 # save dir
 subword_dir="subword/bpe_5k/"
@@ -13,6 +23,8 @@ summary_dir="summary/summary/"
 libri_100hr_dir="data/100/LibriSpeech_train/train-clean-100/"
 libri_360hr_dir="data/360/LibriSpeech_train/train-clean-360/"
 libri_500hr_dir="data/500/LibriSpeech_train/train-other-500/"
+
+
 
 if [ $unit = "subword" ]
 then
@@ -45,7 +57,7 @@ python3 create_tfrecord.py --unit $unit \
 
 echo "$0: LAS Training"
 python3 train.py --lr 0.0001 \
-		 --epoch 3000 \
+		 --epoch $epoch \
 		 --feat_dim 13 \
 		 --enc_units 512 \
 		 --dec_units 1024 \
@@ -62,3 +74,20 @@ python3 train.py --lr 0.0001 \
 		 --summary_dir $summary_dir \
 		 --subword_dir $subword_dir \
 		 --verbose 1 
+
+echo "$0: Decoding"
+python3 decode.py --split $split \
+		  --feat_dim 13 \
+		  --enc_units 512 \
+       	 	  --dec_units 1024 \
+		  --embedding_size 256 \
+		  --attention_size 128 \
+		  --num_enc_layers 4 \
+		  --num_dec_layers 2 \
+		  --mode loc \
+		  --save_dir $model_dir \
+		  --subword_dir $subword_dir
+		  --feat_dir $feat_dir \
+		  --restore_epoch $restore \
+		  --convert_rate $convert_rate \
+	          --verbose 1 

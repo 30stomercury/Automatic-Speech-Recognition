@@ -69,9 +69,15 @@ def edit_distance(s1,s2):
 def get_save_vars():
     """Get all variables needed to be save."""
 
-    var_list = [var for var in tf.global_variables() if "moving" in var.name]                       # include moving var, mean
-    var_list += tf.trainable_variables()                                                            # trainable var
-    var_list += [var for var in tf.global_variables() if "Adam" in var.name or "step" in var.name]  # adam parms
-    var_list += [var for var in tf.global_variables() if "beta1_power" in var.name or "beta2_power" in var.name]
+    var_list = tf.trainable_variables()
+
+    for v in tf.global_variables():
+        if "moving" in var.name:            # include moving var, mean
+            var_list.append(v)
+        elif "Adam" in v or "step" in v:    # adam parms
+            var_list.append(v)
+        elif "beta1_power" in v or "beta2_power" in v:
+            var_list.append(v)
 
     return var_list
+

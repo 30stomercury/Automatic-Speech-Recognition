@@ -138,6 +138,7 @@ def main_libri(args, tokenizer):
     path = [('train-100', args.train_100hr_corpus_dir), ('train-360', args.train_360hr_corpus_dir), 
             ('train-500', args.train_500hr_corpus_dir),
             ('dev',args.dev_data_dir), ('test', args.test_data_dir)]
+    path = [('dev',args.dev_data_dir), ('test', args.test_data_dir)]
 
     for element in path:
                      
@@ -157,10 +158,10 @@ def main_libri(args, tokenizer):
         np.save(args.feat_dir+"/{}-{}len.npy".format(cat, args.unit), tokenlen)
         
         # audios
-        process_libri_feats(audio_path, cat, 4)
+        #process_libri_feats(audio_path, cat, 4)
         
         # augmentation
-        if args.augmentation and cat == 'train':   
+        if args.augmentation and 'train' in cat:   
             folder = args.feat_dir.split("/")[1]
             speed_list = [0.9, 1.1]
             

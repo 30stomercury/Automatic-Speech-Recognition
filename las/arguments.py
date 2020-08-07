@@ -102,14 +102,22 @@ def parse_args():
                         default=0.2, 
                         help='Weighting of ctc.')
     # hparams of Listener
+    parser.add_argument('--enc_type',
+                        type=str,
+                        default='cnn',
+                        help='The hidden dimension of the BLSTMs in Listener.')
     parser.add_argument('--enc_units',
                         type=int,
                         default=64,
-                        help='The hidden dimension of the pBLSTM in Listener.')
+                        help='The hidden dimension of the BLSTMs in Listener.')
+    parser.add_argument('--num_enc_channels',
+                        type=int,
+                        default=32,
+                        help='The number of channels in CNN layers of Listener.')
     parser.add_argument('--num_enc_layers',
                         type=int,
                         default=2,
-                        help='The number of layers of pBLSTM in Listener.')
+                        help='The number of layers of BLSTMs in Listener.')
     # hparams of Attention
     parser.add_argument('--attention_size',
                         type=int,

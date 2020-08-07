@@ -8,7 +8,7 @@ class Listener:
     def __init__(self, args):
         self.args = args
 
-    def __call__(self, inputs, audiolen, encoder= 'cnn', is_training=True):
+    def __call__(self, inputs, audiolen, encoder='cnn', is_training=True):
         with tf.variable_scope("Listener", reuse=tf.AUTO_REUSE):
             if encoder == 'pblstm':
                 inputs = tf.reshape(inputs, [tf.shape(inputs)[0], -1, self.args.feat_dim*3])
@@ -23,7 +23,8 @@ class Listener:
                                                        self.args.num_enc_layers, 
                                                        self.args.feat_dim,
                                                        self.args.enc_units, 
-                                                       32, self.args.dropout_rate, is_training)
+                                                       self.args.num_enc_channels, 
+                                                       self.args.dropout_rate, is_training)
 
             else:
                 raise NotImplementedError
@@ -53,11 +54,12 @@ class Speller:
 
     def __init__(self, args):
         self.args = args
-        self.hidden_size = self.args.enc_units  # => output dimension of encoder h
+        self.hidden_dim = self.args.enc_units  # => output dimension of encoder h
+        self.state_dim = self.args.dec_units*self.args.num_dec_layers
         self._build_decoder_cell()
         self._build_embeddings()
-        self.att_layer = Attention(h_dim=self.hidden_size,                      # TODO move kernel_size, num_channels to args.py
-                                   s_dim=self.args.dec_units*self.args.num_dec_layers,
+        self.att_layer = Attention(h_dim=self.hidden_dim,                      # TODO move kernel_size, num_channels to args.py
+                                   s_dim=self.state_dim,
                                    att_size=self.args.attention_size,
                                    kernel_size=self.args.loc_kernel_size,       # Refer to section 4.2 
                                    num_channels=self.args.loc_num_channels,     # in https://arxiv.org/pdf/1506.07503.pdf
@@ -85,19 +87,17 @@ class Speller:
 
             # define loop
             def iteration(t, rnn_state, prev_token, output, alphas):
-                #cur_token, rnn_state, alphas_ = \
-                #        self.decode(enc_out, enc_len, rnn_state, prev_token, is_training)
                 cur_token, rnn_state, alphas_ = self.decode(enc_out, 
                                                            enc_len, 
                                                            rnn_state, 
-                                                           prev_token,                   # previous token
-                                                           alphas[:, -1, :],            # previous alignment
+                                                           prev_token,                    # previous token
+                                                           alphas[:, -1, :],              # previous alignment
                                                            is_training)
                 if is_training:
                     condition = tf_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
 
                     prev_token = tf.cond(condition,
-                                        lambda: self._look_up(teacher[:, t]),           # => teacher forcing
+                                        lambda: self._look_up(teacher[:, t]),             # => teacher forcing
                                         lambda: self._sample_token(cur_token))            # => or you can use argmax
                                                
                     prev_token = tf.layers.dropout(
@@ -242,7 +242,8 @@ class LAS:
 
         # encoder decoder network
         dec_steps = tf.reduce_max(tokenlen) # => time steps in this batch
-        h, enc_state, enc_len = self.listener(audio, audiolen)
+        enc_type = self.args.enc_type.lower()
+        h, enc_state, enc_len = self.listener(audio, audiolen, enc_type)
         logits, ctc_logits, alphas = self.speller(h, enc_len, dec_steps, y)
 
         # Scale to [0, 255]
@@ -296,7 +297,6 @@ class LAS:
         # sample rate
         sample_rate = self.speller._scheduled_sampling()
 
-
         return loss, train_op, global_step, logits, alphas, summaries, sample_rate
 
     def inference(self, xs):
@@ -307,7 +307,7 @@ class LAS:
                                     tf.to_float(tf.reduce_max(audiolen)))
         dec_steps = tf.to_int32(dec_steps)
         # encoder decoder network
-        h, enc_state, enc_len = self.listener(audio, audiolen, is_training=False)
+        h, enc_state, enc_len = self.listener(audio, audiolen, encoder='cnn', is_training=False)
         logits, ctc_logits, alphas  = self.speller(h, enc_len, dec_steps, is_training=False)
         y_hat = tf.argmax(logits, -1)
 
@@ -325,6 +325,22 @@ class LAS:
         loss = tf.reduce_sum(
             cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
         return loss
+
+    def _get_ctc_loss(self, ctc_logits, y, enc_len):
+        labels = tf.cast(y, tf.int64)
+        enc_len = tf.cast(enc_len, tf.int32)
+        idx = tf.where(tf.not_equal(labels, 0))[:-1]
+        sparse = tf.SparseTensor(idx, tf.gather_nd(labels, idx), tf.shape(labels, out_type=tf.int64))
+        sparse = tf.cast(sparse, tf.int32)
+        return tf.reduce_mean(
+                tf.nn.ctc_loss(
+                        sparse,
+                        inputs=ctc_logits,
+                        sequence_length=enc_len,
+                        preprocess_collapse_repeated=False,
+                        ctc_merge_repeated=True,
+                        ignore_longer_outputs_than_inputs=False,
+                        time_major=False))
 
     def _scheduled_learning_rate(
             self, start=50000, decay_step=100000, decay_rate=0.5, min_rate=0.01, global_step=0):
@@ -345,20 +361,3 @@ class LAS:
                           decay_rate)
 
         return tf.maximum(decayed_lr, min_rate*self.args.lr)
-
-
-    def _get_ctc_loss(self, ctc_logits, y, enc_len):
-        labels = tf.cast(y, tf.int64)
-        enc_len = tf.cast(enc_len, tf.int32)
-        idx = tf.where(tf.not_equal(labels, 0))[:-1]
-        sparse = tf.SparseTensor(idx, tf.gather_nd(labels, idx), tf.shape(labels, out_type=tf.int64))
-        sparse = tf.cast(sparse, tf.int32)
-        return tf.reduce_mean(
-                tf.nn.ctc_loss(
-                        sparse,
-                        inputs=ctc_logits,
-                        sequence_length=enc_len,
-                        preprocess_collapse_repeated=False,
-                        ctc_merge_repeated=True,
-                        ignore_longer_outputs_than_inputs=False,
-                        time_major=False))
