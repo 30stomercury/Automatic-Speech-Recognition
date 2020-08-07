@@ -54,11 +54,12 @@ class Speller:
 
     def __init__(self, args):
         self.args = args
-        self.hidden_size = self.args.enc_units  # => output dimension of encoder h
+        self.hidden_dim = self.args.enc_units  # => output dimension of encoder h
+        self.state_dim = self.args.dec_units*self.args.num_dec_layers
         self._build_decoder_cell()
         self._build_embeddings()
-        self.att_layer = Attention(h_dim=self.hidden_size,                      # TODO move kernel_size, num_channels to args.py
-                                   s_dim=self.args.dec_units*self.args.num_dec_layers,
+        self.att_layer = Attention(h_dim=self.hidden_dim,                      # TODO move kernel_size, num_channels to args.py
+                                   s_dim=self.state_dim,
                                    att_size=self.args.attention_size,
                                    kernel_size=self.args.loc_kernel_size,       # Refer to section 4.2 
                                    num_channels=self.args.loc_num_channels,     # in https://arxiv.org/pdf/1506.07503.pdf
@@ -80,7 +81,7 @@ class Speller:
             init_alphas = tf.zeros([tf.shape(enc_out)[0], 1, tf.shape(enc_out)[1]])
 
             if is_training and self.args.scheduled_sampling:
-                tf_rate = self._scheduled_tfrate()#self._scheduled_sampling()
+                tf_rate = self._scheduled_sampling()
             else:
                 tf_rate = 0
 
@@ -176,21 +177,6 @@ class Speller:
         progress = tf.minimum(
             (step-self.args.warmup_step) / float(self.args.max_step-self.args.warmup_step), 1.0)
         return tf.minimum(1.0, 1.0 - progress * (1.0 -self.args.min_rate))
-
-    def _scheduled_tfrate(
-            self, start=100000, decay_step=80000, decay_rate=0.8, min_rate=0.4):
-        '''
-        Args:
-            start:      int, start tf rate decay.
-            decay_step: int, decay constant.
-            min_rate:   float, minimum learning rate.
-        '''
-
-        step = tf.train.get_or_create_global_step()
-        step = tf.cast(step, tf.float32)
-        decayed_tfrate = decay_rate**(step // decay_step)
-                        
-        return tf.maximum(decayed_tfrate, min_rate*1.0)
 
     def _get_hidden_state(self, dec_state):
         if self.args.num_dec_layers > 0:
@@ -309,8 +295,7 @@ class LAS:
         summaries = tf.summary.merge_all()
 
         # sample rate
-        #sample_rate = self.speller._scheduled_sampling()
-        sample_rate = self.speller._scheduled_tfrate()
+        sample_rate = self.speller._scheduled_sampling()
 
         return loss, train_op, global_step, logits, alphas, summaries, sample_rate
 
