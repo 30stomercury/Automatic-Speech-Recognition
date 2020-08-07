@@ -7,6 +7,7 @@ feat_type="mfcc"
 epoch=100
 
 # inference
+split="dev"
 restore=100
 convert_rate=0.12
 beam_size=8
@@ -75,7 +76,8 @@ python3 train.py --lr 0.0001 \
 		 --verbose 1 
 
 echo "$0: Decoding"
-python3 decode.py --feat_dim 13 \
+python3 decode.py --split $split \
+		  --feat_dim 13 \
 		  --enc_units 512 \
        	 	  --dec_units 1024 \
 		  --embedding_size 256 \
