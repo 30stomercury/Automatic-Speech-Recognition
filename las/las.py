@@ -8,7 +8,7 @@ class Listener:
     def __init__(self, args):
         self.args = args
 
-    def __call__(self, inputs, audiolen, encoder= 'cnn', is_training=True):
+    def __call__(self, inputs, audiolen, encoder='cnn', is_training=True):
         with tf.variable_scope("Listener", reuse=tf.AUTO_REUSE):
             if encoder == 'pblstm':
                 inputs = tf.reshape(inputs, [tf.shape(inputs)[0], -1, self.args.feat_dim*3])
@@ -23,7 +23,8 @@ class Listener:
                                                        self.args.num_enc_layers, 
                                                        self.args.feat_dim,
                                                        self.args.enc_units, 
-                                                       32, self.args.dropout_rate, is_training)
+                                                       self.args.num_enc_channels, 
+                                                       self.args.dropout_rate, is_training)
 
             else:
                 raise NotImplementedError
@@ -79,25 +80,23 @@ class Speller:
             init_alphas = tf.zeros([tf.shape(enc_out)[0], 1, tf.shape(enc_out)[1]])
 
             if is_training and self.args.scheduled_sampling:
-                tf_rate = self._scheduled_sampling()
+                tf_rate = self._scheduled_tfrate()#self._scheduled_sampling()
             else:
                 tf_rate = 0
 
             # define loop
             def iteration(t, rnn_state, prev_token, output, alphas):
-                #cur_token, rnn_state, alphas_ = \
-                #        self.decode(enc_out, enc_len, rnn_state, prev_token, is_training)
                 cur_token, rnn_state, alphas_ = self.decode(enc_out, 
                                                            enc_len, 
                                                            rnn_state, 
-                                                           prev_token,                   # previous token
-                                                           alphas[:, -1, :],            # previous alignment
+                                                           prev_token,                    # previous token
+                                                           alphas[:, -1, :],              # previous alignment
                                                            is_training)
                 if is_training:
                     condition = tf_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
 
                     prev_token = tf.cond(condition,
-                                        lambda: self._look_up(teacher[:, t]),           # => teacher forcing
+                                        lambda: self._look_up(teacher[:, t]),             # => teacher forcing
                                         lambda: self._sample_token(cur_token))            # => or you can use argmax
                                                
                     prev_token = tf.layers.dropout(
@@ -178,6 +177,21 @@ class Speller:
             (step-self.args.warmup_step) / float(self.args.max_step-self.args.warmup_step), 1.0)
         return tf.minimum(1.0, 1.0 - progress * (1.0 -self.args.min_rate))
 
+    def _scheduled_tfrate(
+            self, start=100000, decay_step=80000, decay_rate=0.8, min_rate=0.4):
+        '''
+        Args:
+            start:      int, start tf rate decay.
+            decay_step: int, decay constant.
+            min_rate:   float, minimum learning rate.
+        '''
+
+        step = tf.train.get_or_create_global_step()
+        step = tf.cast(step, tf.float32)
+        decayed_tfrate = decay_rate**(step // decay_step)
+                        
+        return tf.maximum(decayed_tfrate, min_rate*1.0)
+
     def _get_hidden_state(self, dec_state):
         if self.args.num_dec_layers > 0:
             return tf.concat(dec_state, -1)
@@ -242,7 +256,8 @@ class LAS:
 
         # encoder decoder network
         dec_steps = tf.reduce_max(tokenlen) # => time steps in this batch
-        h, enc_state, enc_len = self.listener(audio, audiolen)
+        enc_type = self.args.enc_type.lower()
+        h, enc_state, enc_len = self.listener(audio, audiolen, enc_type)
         logits, ctc_logits, alphas = self.speller(h, enc_len, dec_steps, y)
 
         # Scale to [0, 255]
@@ -294,8 +309,8 @@ class LAS:
         summaries = tf.summary.merge_all()
 
         # sample rate
-        sample_rate = self.speller._scheduled_sampling()
-
+        #sample_rate = self.speller._scheduled_sampling()
+        sample_rate = self.speller._scheduled_tfrate()
 
         return loss, train_op, global_step, logits, alphas, summaries, sample_rate
 
@@ -307,7 +322,7 @@ class LAS:
                                     tf.to_float(tf.reduce_max(audiolen)))
         dec_steps = tf.to_int32(dec_steps)
         # encoder decoder network
-        h, enc_state, enc_len = self.listener(audio, audiolen, is_training=False)
+        h, enc_state, enc_len = self.listener(audio, audiolen, encoder='cnn', is_training=False)
         logits, ctc_logits, alphas  = self.speller(h, enc_len, dec_steps, is_training=False)
         y_hat = tf.argmax(logits, -1)
 
@@ -325,6 +340,22 @@ class LAS:
         loss = tf.reduce_sum(
             cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
         return loss
+
+    def _get_ctc_loss(self, ctc_logits, y, enc_len):
+        labels = tf.cast(y, tf.int64)
+        enc_len = tf.cast(enc_len, tf.int32)
+        idx = tf.where(tf.not_equal(labels, 0))[:-1]
+        sparse = tf.SparseTensor(idx, tf.gather_nd(labels, idx), tf.shape(labels, out_type=tf.int64))
+        sparse = tf.cast(sparse, tf.int32)
+        return tf.reduce_mean(
+                tf.nn.ctc_loss(
+                        sparse,
+                        inputs=ctc_logits,
+                        sequence_length=enc_len,
+                        preprocess_collapse_repeated=False,
+                        ctc_merge_repeated=True,
+                        ignore_longer_outputs_than_inputs=False,
+                        time_major=False))
 
     def _scheduled_learning_rate(
             self, start=50000, decay_step=100000, decay_rate=0.5, min_rate=0.01, global_step=0):
@@ -345,20 +376,3 @@ class LAS:
                           decay_rate)
 
         return tf.maximum(decayed_lr, min_rate*self.args.lr)
-
-
-    def _get_ctc_loss(self, ctc_logits, y, enc_len):
-        labels = tf.cast(y, tf.int64)
-        enc_len = tf.cast(enc_len, tf.int32)
-        idx = tf.where(tf.not_equal(labels, 0))[:-1]
-        sparse = tf.SparseTensor(idx, tf.gather_nd(labels, idx), tf.shape(labels, out_type=tf.int64))
-        sparse = tf.cast(sparse, tf.int32)
-        return tf.reduce_mean(
-                tf.nn.ctc_loss(
-                        sparse,
-                        inputs=ctc_logits,
-                        sequence_length=enc_len,
-                        preprocess_collapse_repeated=False,
-                        ctc_merge_repeated=True,
-                        ignore_longer_outputs_than_inputs=False,
-                        time_major=False))
