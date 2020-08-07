@@ -16,16 +16,13 @@ import tensorflow as tf
 from las.beam_search import BeamSearch
 from utils.tokenizer import SubwordEncoder, CharEncoder
 from las.utils import convert_idx_to_string, wer, edit_distance
-from las.arguments import parse_args
-from las.las import Listener, Speller, LAS  # load las
-from data_loader import batch_gen
 from train_lm import load_vocab           
+from las.las import Listener, Speller, LAS  # load las
 from lang.char_rnn_model import *           # load language model
+from las.arguments import parse_args
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'    # set your decive number
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-_DECODING_THRESHOLD = 160 # The threshold for long utterance. If > this threshold, split it into two sub utterances for better performance.
 
 def load_lm(init_dir, model_path):
     with open(os.path.join(init_dir, 'result.json'), 'r') as f:
@@ -50,7 +47,6 @@ def restore_lm(sess, save_path):
             if v.name.split(":")[0] in var_list:
                 var_lm[v.name.split(":")[0]] = v
 
-        #logging.info("Restore language model.")
         # create restore dict for decode scope
         saver_lm = tf.train.Saver(name='checkpoint_saver', var_list=var_lm)
         saver_lm.restore(sess, save_path)
@@ -83,10 +79,10 @@ sess = tf.Session()
 # load from previous output
 try:
     logging.info("Load features...")
-    dev_feats = joblib.load(args.feat_dir+"/{}_feats.pkl".format(args.split))
-    dev_featlen = np.load(args.feat_dir+"/{}_featlen.npy".format(args.split), allow_pickle=True)
-    dev_tokens = np.load(args.feat_dir+"/{}_{}s.npy".format(args.split, args.unit), allow_pickle=True)
-    dev_tokenlen = np.load(args.feat_dir+"/{}_{}len.npy".format(args.split, args.unit), allow_pickle=True)
+    dev_feats = joblib.load(args.feat_dir+"/{}-feats.pkl".format(args.split))
+    dev_featlen = np.load(args.feat_dir+"/{}-featlen.npy".format(args.split), allow_pickle=True)
+    dev_tokens = np.load(args.feat_dir+"/{}-{}s.npy".format(args.split, args.unit), allow_pickle=True)
+    dev_tokenlen = np.load(args.feat_dir+"/{}-{}len.npy".format(args.split, args.unit), allow_pickle=True)
 
 # process features
 except:
@@ -124,21 +120,13 @@ count = 0
 total_utt = len(dev_feats)
 logging.info("Decoding...")
 for audio, audiolen, y in zip(dev_feats, dev_featlen, dev_tokens):
-    if args.convert_rate*audiolen > _DECODING_THRESHOLD:
-        # split into sub utterances for decoding
-        l = int(args.convert_rate*audiolen) // 100
-        m = audiolen // l
-        print(l, m)
-        hyp = ""
-        for i in range(l):
-            xs = (np.expand_dims(audio[i*m:(i+1)*m], 0), np.expand_dims(m, 0))
-            beam_states = bs.decode(sess, xs)
-            hyp += convert_idx_to_string(beam_states[-1].token_ids[1:], id_to_token, args.unit)
-    else:
-        xs = (np.expand_dims(audio, 0), np.expand_dims(audiolen, 0))
-        beam_states = bs.decode(sess, xs)
-        hyp = convert_idx_to_string(beam_states[-1].token_ids[1:], id_to_token, args.unit)
 
+    # decode
+    xs = (np.expand_dims(audio, 0), np.expand_dims(audiolen, 0))
+    beam_states = bs.decode(sess, xs)
+    hyp = convert_idx_to_string(beam_states[-1].token_ids[1:], id_to_token, args.unit)
+    
+    # count errors
     ref = convert_idx_to_string(y, id_to_token, args.unit)
     dist, n  = edit_distance(ref.split(" "), hyp.split(" "))
     error += dist
