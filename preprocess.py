@@ -158,7 +158,7 @@ def main_libri(args, tokenizer):
         np.save(args.feat_dir+"/{}-{}len.npy".format(cat, args.unit), tokenlen)
         
         # audios
-        #process_libri_feats(audio_path, cat, 4)
+        process_libri_feats(audio_path, cat, 4)
         
         # augmentation
         if args.augmentation and 'train' in cat:   
