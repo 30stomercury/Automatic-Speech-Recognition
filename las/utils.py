@@ -72,11 +72,11 @@ def get_save_vars():
     var_list = tf.trainable_variables()
 
     for v in tf.global_variables():
-        if "moving" in var.name:            # include moving var, mean
+        if "moving" in v.name:            # include moving var, mean
             var_list.append(v)
-        elif "Adam" in v or "step" in v:    # adam parms
+        elif "Adam" in v.name or "step" in v.name:    # adam parms
             var_list.append(v)
-        elif "beta1_power" in v or "beta2_power" in v:
+        elif "beta1_power" in v.name or "beta2_power" in v.name:
             var_list.append(v)
 
     return var_list

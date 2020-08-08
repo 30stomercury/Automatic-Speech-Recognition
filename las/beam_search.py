@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-NORM=True
+NORM = True
 
 
 class BeamState(object):
@@ -155,7 +155,7 @@ class BeamSearch(object):
         if t == dec_step:
             selected_beam_state.extend(beam_set)
 
-        return self._select_best_k(selected_beam_state, norm)
+        return self._select_best_k(selected_beam_state, NORM)
 
     def _build_encode(self, enc_type):
         """build encoder graph"""
