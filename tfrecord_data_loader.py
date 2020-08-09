@@ -40,8 +40,7 @@ def data_parser(record):
   feat = features['feat']  # sparse tensor
   feat = tf.sparse_tensor_to_dense(feat)
   shape = tf.cast(features['shape'], tf.int32)
-  # TODO move 13, 3 to parameters
-  feat = tf.reshape(feat, [shape[0], 13, 3])
+  feat = tf.reshape(feat, [shape[0], shape[1], 3])
   featlen = shape[0]
 
   token = features[
@@ -51,7 +50,7 @@ def data_parser(record):
 
   return (feat, featlen), (token, tokenlen)
 
-def tfrecord_iterator(filenames, record_parser, is_training=True):
+def tfrecord_iterator(filenames, record_parser, feat_dim=13, is_training=True):
   ''' Create iterator to eat tfrecord dataset 
 
     Args
@@ -83,9 +82,9 @@ def tfrecord_iterator(filenames, record_parser, is_training=True):
   bucket_batch_limit = [96, 48, 48, 48, 48, 48, 48, 48, 48]
 
   # TODO move 13, 3 to parameters
-  shapes = shapes = (([None, 13, 3], []), ([max_tokenlen], []))
-
-  dataset = tf.data.TFRecordDataset(filenames)
+  shapes = shapes = (([None, feat_dim, 3], []), ([max_tokenlen], []))
+  files = tf.data.Dataset.list_files(filenames, shuffle=True)
+  dataset = files.interleave(map_func=tf.data.TFRecordDataset, cycle_length=10)
   dataset = dataset.map(record_parser, num_parallel_calls=16)
   dataset = dataset.apply(tf.data.experimental.bucket_by_sequence_length(element_length_func=_element_length_fn, 
                                                                        bucket_boundaries=bucket_upper_bound,
@@ -109,7 +108,8 @@ if __name__ == '__main__':
         "data/tfrecord_bpe_5k/train-100-1.tfrecord"
 
     ]
-    train_iter, types, shapes = tfrecord_iterator(training_filenames, data_parser)
+    training_filenames = "data/tfrecord_fbank_bpe_5k/train*.tfrecord"
+    train_iter, types, shapes = tfrecord_iterator(training_filenames, data_parser, 80)
     print(types, shapes)
 
     sess = tf.Session()
