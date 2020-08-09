@@ -69,28 +69,23 @@ def process_audios(audio_path, args):
         audio, fs = sf.read(p)
 
         if feat_type == 'mfcc':
-            assert feat_dim == 39, "13+delta+accelerate"
-            mfcc = speechpy.feature.mfcc(audio, 
+            feat = speechpy.feature.mfcc(audio, 
                                          fs, 
                                          frame_length=frame_length/1000, 
                                          frame_stride=frame_step/1000, 
-                                         num_cepstral=13) # 13 is commonly used
-            
-            if cmvn:
-                mfcc = speechpy.processing.cmvn(mfcc, True)
-            mfcc_39 = speechpy.feature.extract_derivative_feature(mfcc)
-            feats.append(mfcc_39.reshape(-1, feat_dim).astype(np.float32))
-
+                                         num_cepstral=feat_dim) # 13 is commonly used
         elif feat_type == 'fbank':
-            fbank = speechpy.feature.lmfe(audio, 
-                                          fs, 
-                                          frame_length=frame_length/1000, 
-                                          frame_stride=frame_step/1000, 
-                                          num_filters=feat_dim)
-            if cmvn:
-                fbank = speechpy.processing.cmvn(fbank, True)
-            feats.append(fbank.reshape(-1, feat_dim).astype(np.float32))
+            feat, _ = speechpy.feature.mfe(audio, 
+                                         fs, 
+                                         frame_length=frame_length/1000, 
+                                         frame_stride=frame_step/1000, 
+                                         num_filters=feat_dim)
+            
+        if cmvn:
+            feat = speechpy.processing.cmvn(feat, True)
+            feat = speechpy.feature.extract_derivative_feature(feat)
 
+        feats.append(feat.astype(np.float32))
         featlen.append(len(feats[-1]))
 
     return np.array(feats), featlen
