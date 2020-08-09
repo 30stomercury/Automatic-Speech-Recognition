@@ -109,10 +109,16 @@ for h in [100, 360, 500]:
 
     assert len(train_feats) == len(train_tokens)
 
+    # Shuffle
+    rand_idx = np.random.permutation(len(train_tokens))
+    train_feats = train_feats[rand_idx]
+    train_tokens = train_tokens[rand_idx]
+
+    # Clip to maxlen
     X = train_feats[train_featlen < MAXLEN]
     y = train_tokens[train_featlen < MAXLEN]
 
-    create_tfrecords(X, y, args.save_dir+prefix, h // 100)
+    create_tfrecords(X, y, args.save_dir+prefix, h // 20)
 
 # dev, test
 for prefix in ["dev", "test"]:
