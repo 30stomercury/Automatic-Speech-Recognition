@@ -29,10 +29,10 @@ MAXLEN = 1710
 
 
 def load_feats(path, cat):
-    partitions = np.sort(glob(path+"/"+cat+"-feats*"))
+    num_partitions = len(glob(path+"/"+cat+"-feats*"))
     feats = []
-    for p in partitions:
-        feats_ = joblib.load(p)
+    for i in range(num_partitions):
+        feats_ = joblib.load(path+"/"+cat+"-feats-{}.pkl".format(i))
         feats = np.append(feats, feats_)   
     return feats
 
@@ -112,6 +112,7 @@ for h in [100, 360, 500]:
     # Shuffle
     rand_idx = np.random.permutation(len(train_tokens))
     train_feats = train_feats[rand_idx]
+    train_featlen = train_featlen[rand_idx]
     train_tokens = train_tokens[rand_idx]
 
     # Clip to maxlen
