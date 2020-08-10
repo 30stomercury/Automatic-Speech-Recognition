@@ -14,7 +14,7 @@ from utils.tokenizer import SubwordEncoder, CharEncoder
 from utils.augmentation import SpeedAugmentation, VolumeAugmentation
 
 # When number of audios in a set (usually training set) > threshold, divide set into several parts to avoid memory error.
-_SAMPLE_THRESHOLD = 50000
+_SAMPLE_THRESHOLD = 30000
 
 # set logging
 logging.basicConfig(stream=sys.stdout,
@@ -152,7 +152,7 @@ def main_libri(args, tokenizer):
         np.save(args.feat_dir+"/{}-{}len.npy".format(cat, args.unit), tokenlen)
         
         # audios
-        process_libri_feats(audio_path, cat, 4)
+        process_libri_feats(audio_path, cat, len(audio_path)//_SAMPLE_THRESHOLD)
         
         # augmentation
         if args.augmentation and 'train' in cat:   
