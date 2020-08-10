@@ -68,7 +68,7 @@ python3 train.py --lr 0.0001 \
 		 --mode loc \
 		 --dropout_rate 0 \
 		 --grad_clip 5 \
-		 --schduled_sampling False \
+		 --scheduled_sampling False \
 		 --augmentation False \
 		 --save_dir $model_dir \
 		 --summary_dir $summary_dir \

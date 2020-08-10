@@ -43,18 +43,12 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 
 # tfrecord
-training_filenames = [
-    "data/tfrecord_bpe_5k/train-100-1.tfrecord", "data/tfrecord_bpe_5k/train-360-1.tfrecord",
-    "data/tfrecord_bpe_5k/train-360-2.tfrecord", "data/tfrecord_bpe_5k/train-360-3.tfrecord"
-]
+training_filenames = "data/tfrecord_{}_bpe_5k/train-*.tfrecord".format(args.feat_type)
 
 # load from previous output
 try:
     print("Load features...")
-    train_iter, types, shapes = tfrecord_iterator(training_filenames, data_parser)
-    num_train_records = get_num_records(training_filenames)
-    print('Number of train records in training files: {}'.format(
-        num_train_records))
+    train_iter, types, shapes = tfrecord_iterator(training_filenames, data_parser, args.feat_dim)
 
 # process features
 except:
@@ -110,7 +104,8 @@ logging.info("Total weights: {}".format(
             np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
 
 # training
-num_train_batches = num_train_records // 48 + int(num_train_records % 32 != 0)
+num_train_records = 28517 + 103929
+num_train_batches = num_train_records // 48 + int(num_train_records % 48 != 0)
 training_steps = num_train_batches * args.epoch
 logging.info("Total num train batches: {}".format(num_train_batches))
 logging.info("Training...")

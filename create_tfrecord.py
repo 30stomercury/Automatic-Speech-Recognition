@@ -26,19 +26,22 @@ args = parser.parse_args()
 # setup
 UNIT = args.unit
 MAXLEN = 1710
+NUM_FILE_PER_TFRECORD = 5000
 
 
-def load_feats(path, cat):
-    partitions = np.sort(glob(path+"/"+cat+"-feats*"))
+def load_train_feats(filenames):
+    
     feats = []
-    for p in partitions:
-        feats_ = joblib.load(p)
+    for f in filenames:
+        print("load", f)
+        feats_ = joblib.load(f)
         feats = np.append(feats, feats_)   
+
     return feats
 
 # create tfrecords for dataset 
 
-def create_tfrecords(X, y, filename, num_files=5):
+def create_tfrecords(X, y, filename, num_files=5, file_start_index=1):
     ''' Create tfrecords for dataset 
     Args 
         X: Input acoustic features.
@@ -63,7 +66,7 @@ def create_tfrecords(X, y, filename, num_files=5):
     for i in range(num_files):
         # tfrecord writer: write record into files
         count = 0
-        writer = tf.python_io.TFRecordWriter(filename+ '-' + str(i+1) + '.tfrecord')
+        writer = tf.python_io.TFRecordWriter(filename+ '-' + str(i+file_start_index) + '.tfrecord')
 
         # put remaining records in last file
         st = i * num_records_per_file                                              # start point (inclusive)
@@ -86,45 +89,65 @@ def create_tfrecords(X, y, filename, num_files=5):
             count += 1
             writer.write(example.SerializeToString())
 
-        print("create {}-{}.tfrecord -- contains {} records".format(filename, str(i+1), count))
+        print("create {}-{}.tfrecord -- contains {} records".format(filename, str(i+file_start_index), count))
         total_count += count
         writer.close()
     print("Total records: {}".format(total_count))
 
 
 
-# 100h, 360h, 500h
-feat_dir = args.feat_dir
+if __name__ == '__main__':
 
-if not os.path.exists(args.save_dir):
-    os.makedirs(args.save_dir)
+    # 100h, 360h, 500h
+    feat_dir = args.feat_dir
 
-for h in [100, 360, 500]:
-    prefix = "train-{}".format(h)
-    train_feats = load_feats(feat_dir, prefix)
-    train_featlen = np.load(
-            feat_dir + "/{}-featlen.npy".format(prefix), allow_pickle=True)
-    train_tokens = np.load(
-            feat_dir + "/{}-{}s.npy".format(prefix, UNIT), allow_pickle=True)
+    if not os.path.exists(args.save_dir):
+        os.makedirs(args.save_dir)
 
-    assert len(train_feats) == len(train_tokens)
+    for h in [100, 360, 500]:
+        prefix = "train-{}".format(h)
+        train_tokens = np.load(
+                feat_dir + "/{}-{}s.npy".format(prefix, UNIT), allow_pickle=True)
 
-    X = train_feats[train_featlen < MAXLEN]
-    y = train_tokens[train_featlen < MAXLEN]
 
-    create_tfrecords(X, y, args.save_dir+prefix, h // 100)
+        num_files = len(glob(feat_dir+"/"+prefix+"-feats*"))
+        num_partitions = h // 50
+        filenames = [feat_dir+"/"+prefix+"-feats-{}.pkl".format(i) for i in range(num_files)]
 
-# dev, test
-for prefix in ["dev", "test"]:
-    eval_feats = load_feats(feat_dir, prefix)
-    eval_featlen = np.load(
-            feat_dir + "/{}-featlen.npy".format(prefix), allow_pickle=True)
-    eval_tokens = np.load(
-            feat_dir + "/{}-{}s.npy".format(prefix, UNIT), allow_pickle=True)
+        num_pkl_per_tfrecord = num_files // num_partitions
 
-    assert len(eval_feats) == len(eval_tokens)
+        st_save_index = 1
+        st_token_index = 0
+        for i in range(num_partitions):
+            
+            st = i * num_pkl_per_tfrecord                                                    # start point (inclusive)
+            ed = (i+1) * num_pkl_per_tfrecord if i != num_partitions-1 else num_files        # end point (exclusive)
+            train_feats = load_train_feats(filenames[st:ed])
+            train_tokens_ = train_tokens[st_token_index:st_token_index+len(train_feats)]
+            st_token_index += len(train_feats)
 
-    X = eval_feats
-    y = eval_tokens
+            # Shuffle
+            rand_idx = np.random.permutation(len(train_tokens_))
+            train_feats = train_feats[rand_idx]
+            train_featlen = np.array([len(feat) for feat in train_feats])
+            train_tokens_ = train_tokens_[rand_idx]
 
-    create_tfrecords(X, y, args.save_dir+prefix, 1)
+            # Clip to maxlen
+            X = train_feats[train_featlen < MAXLEN]
+            y = train_tokens_[train_featlen < MAXLEN]
+            print(st_save_index, st_token_index)
+            create_tfrecords(X, y, args.save_dir+prefix, len(y) // NUM_FILE_PER_TFRECORD, st_save_index)
+            st_save_index += len(y) // NUM_FILE_PER_TFRECORD
+
+    # dev, test
+    for prefix in ["dev", "test"]:
+        eval_feats = joblib.load(feat_dir + "/{}-feats.pkl".format(prefix))
+        eval_tokens = np.load(
+                feat_dir + "/{}-{}s.npy".format(prefix, UNIT), allow_pickle=True)
+
+        assert len(eval_feats) == len(eval_tokens)
+
+        X = eval_feats
+        y = eval_tokens
+
+        create_tfrecords(X, y, args.save_dir+prefix, 1)
