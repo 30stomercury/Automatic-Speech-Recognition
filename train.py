@@ -43,16 +43,13 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 
 # tfrecord
-training_filenames = [
-    "data/tfrecord_bpe_5k/train-100-1.tfrecord", "data/tfrecord_bpe_5k/train-360-1.tfrecord",
-    "data/tfrecord_bpe_5k/train-360-2.tfrecord", "data/tfrecord_bpe_5k/train-360-3.tfrecord"
-]
+training_filenames = "data/tfrecord_{}_bpe_5k/train-*.tfrecord".format(args.feat_type)
 
 # load from previous output
 try:
     print("Load features...")
     train_iter, types, shapes = tfrecord_iterator(training_filenames, data_parser)
-    num_train_records = get_num_records(training_filenames)
+    num_train_records = get_num_records(glob(training_filenames))
     print('Number of train records in training files: {}'.format(
         num_train_records))
 
