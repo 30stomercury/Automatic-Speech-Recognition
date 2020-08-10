@@ -18,6 +18,7 @@ def get_num_records(files):
   for fn in files:
     for record in tf.python_io.tf_record_iterator(fn):
       count += 1
+      print(count)
   return count
 
 
@@ -30,7 +31,7 @@ def data_parser(record):
 
   keys_to_features = {
       'feat': tf.VarLenFeature(dtype=tf.float32),
-      'shape': tf.FixedLenFeature([2], dtype=tf.int64),
+      'shape': tf.FixedLenFeature([3], dtype=tf.int64),
       'token': tf.VarLenFeature(dtype=tf.int64)
   }
 
@@ -40,7 +41,7 @@ def data_parser(record):
   feat = features['feat']  # sparse tensor
   feat = tf.sparse_tensor_to_dense(feat)
   shape = tf.cast(features['shape'], tf.int32)
-  feat = tf.reshape(feat, [shape[0], shape[1], 3])
+  feat = tf.reshape(feat, [shape[0], 80, 3])
   featlen = shape[0]
 
   token = features[
@@ -104,11 +105,7 @@ def tfrecord_iterator(filenames, record_parser, feat_dim=13, is_training=True):
   return iterator, output_types, output_shapes
 
 if __name__ == '__main__':
-    training_filenames = [
-        "data/tfrecord_bpe_5k/train-100-1.tfrecord"
-
-    ]
-    training_filenames = "data/tfrecord_fbank_bpe_5k/train*.tfrecord"
+    training_filenames = "data/tfrecord_fbank_bpe_5k/train-360*.tfrecord"
     train_iter, types, shapes = tfrecord_iterator(training_filenames, data_parser, 80)
     print(types, shapes)
 
