@@ -83,7 +83,7 @@ class Speller:
             if is_training and self.args.scheduled_sampling:
                 tf_rate = self._scheduled_sampling()
             else:
-                tf_rate = 0
+                tf_rate = 1
 
             # define loop
             def iteration(t, rnn_state, prev_token, output, alphas):

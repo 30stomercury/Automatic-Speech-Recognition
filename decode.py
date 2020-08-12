@@ -21,7 +21,7 @@ from las.las import Listener, Speller, LAS  # load las
 from lang.char_rnn_model import *           # load language model
 from las.arguments import parse_args
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'    # set your decive number
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'    # set your decive number
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 def load_lm(init_dir, model_path):
@@ -108,6 +108,14 @@ logging.info("LAS restored: {}".format(ckpt))
 if args.apply_lm:
     restore_lm(sess, model_path)
     logging.info("RNNLM restored: {}".format(model_path))
+
+
+
+# info
+print('=' * 60)
+logging.info("Testing command: python3 {}".format(" ".join(sys.argv)))
+print('=' * 60)
+
 
 # sort by length
 sorted_id = np.argsort(dev_tokenlen)
