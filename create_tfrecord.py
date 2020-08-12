@@ -135,7 +135,6 @@ if __name__ == '__main__':
             # Clip to maxlen
             X = train_feats[train_featlen < MAXLEN]
             y = train_tokens_[train_featlen < MAXLEN]
-            print(st_save_index, st_token_index)
             create_tfrecords(X, y, args.save_dir+prefix, len(y) // NUM_FILE_PER_TFRECORD, st_save_index)
             st_save_index += len(y) // NUM_FILE_PER_TFRECORD
 
