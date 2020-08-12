@@ -41,7 +41,7 @@ def data_parser(record):
   feat = features['feat']  # sparse tensor
   feat = tf.sparse_tensor_to_dense(feat)
   shape = tf.cast(features['shape'], tf.int32)
-  feat = tf.reshape(feat, [shape[0], 80, 3])
+  feat = tf.reshape(feat, [shape[0], shape[1], 3])
   featlen = shape[0]
 
   token = features[
