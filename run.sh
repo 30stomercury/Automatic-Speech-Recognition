@@ -14,8 +14,8 @@ beam_size=8
 
 # save dir
 subword_dir="subword/bpe_5k/"
-feat_dir="data/features_mfcc_bpe_5k/"
-tfrecord_dir="data/tfrecord_mfcc_bpe_5k/"
+feat_dir="data/features_${feat_type}_bpe_5k/"
+tfrecord_dir="data/tfrecord_${feat_type}_bpe_5k_test/"
 model_dir="model/las/"
 summary_dir="summary/summary/"
 
