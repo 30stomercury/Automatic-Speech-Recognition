@@ -18,7 +18,6 @@ def get_num_records(files):
   for fn in files:
     for record in tf.python_io.tf_record_iterator(fn):
       count += 1
-      print(count)
   return count
 
 
