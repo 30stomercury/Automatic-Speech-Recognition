@@ -105,7 +105,7 @@ logging.info("Total weights: {}".format(
 
 # training
 num_train_records = 28517 + 103929
-num_train_batches = num_train_records // 48 + int(num_train_records % 48 != 0)
+num_train_batches = 2619
 training_steps = num_train_batches * args.epoch
 logging.info("Total num train batches: {}".format(num_train_batches))
 logging.info("Training...")

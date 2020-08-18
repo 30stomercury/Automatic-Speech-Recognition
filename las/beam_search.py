@@ -120,7 +120,7 @@ class BeamSearch(object):
 
             # collect nodes
             for i in range(num_beam):
-                topk_ids = np.argsort(logits[i])[64:]       # => argsort is in acending order
+                topk_ids = np.argsort(logits[i])[-64:]      # => argsort is in acending order
                 topk_probs = logits[i][topk_ids]
 
                 for j in range(len(topk_ids)):              # => search each node
@@ -273,7 +273,7 @@ class BeamSearch(object):
         """Restore LAS ckpt."""
         ckpt = tf.train.latest_checkpoint(save_path)
         if restore_epoch != -1:
-            ckpt = save_path+"/las_E{}".format(restore_epoch)
+            ckpt = save_path+"las_E{}".format(restore_epoch)
         var_las = self._get_decode_varlist(ckpt) 
         # restore
         saver = tf.train.Saver(var_list=var_las)
@@ -303,7 +303,7 @@ class BeamSearch(object):
             beam_set: list, sorted beam_set based on log_prob in acending order.
         """
         if norm:
-            log_prob = [b.log_prob/len(b.token_ids) for b in beam_set]
+            log_prob = [b.log_prob/(len(b.token_ids)-1) for b in beam_set]
         else:
             log_prob = [b.log_prob for b in beam_set]
 
