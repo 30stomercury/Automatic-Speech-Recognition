@@ -55,6 +55,7 @@ def blstm(inputs, cell_units, dropout_rate, is_training):
 
 def pBLSTMLayer(inputs, audiolen, num_layers, cell_units, dropout_rate, is_training):
     """Pyramidal BLSTM
+
     blstm ->
     projection/tanh ->
     pblstm ->
@@ -93,7 +94,7 @@ def pBLSTMLayer(inputs, audiolen, num_layers, cell_units, dropout_rate, is_train
             audiolen = (audiolen + audiolen % 2) / 2
     return rnn_out, states, audiolen
 
-def conv2d(inputs, output_dim, k_h=3, k_w=3, d_h=2, d_w=2, stddev=1, name="conv2d", is_training=True):
+def conv2d(inputs, output_dim, k_h=3, k_w=3, d_h=2, d_w=2, stddev=1, name="conv2d", apply_bn=False, is_training=True):
     with tf.variable_scope(name) as scope:
         init = tf.random.normal(
                 [k_h, k_w, inputs.get_shape().as_list()[-1], output_dim], stddev=stddev)*0.01
@@ -102,7 +103,10 @@ def conv2d(inputs, output_dim, k_h=3, k_w=3, d_h=2, d_w=2, stddev=1, name="conv2
             'b', [output_dim], initializer=tf.constant_initializer(0.01))
         conv = tf.nn.conv2d(inputs, w, strides=[1, d_h, d_w, 1], padding='SAME')
         conv += b
-        conv = bn(conv, is_training)
+
+        if apply_bn:
+            conv = bn(conv, is_training)
+
         conv = tf.nn.relu(conv)
 
         return conv
@@ -111,8 +115,9 @@ def bn(inputs, is_training):
 
     return tf.layers.batch_normalization(inputs, training=is_training)
 
-def CNNLayer(inputs, audiolen, num_enc_layers, feat_dim, cell_units, num_channel, dropout_rate, is_training):
+def CNNLayer(inputs, audiolen, num_enc_layers, feat_dim, cell_units, num_channel, dropout_rate, apply_bn=False, is_training=False):
     """CNN networks 
+
     cnn/batch-norm/relu ->
     cnn/batch-norm/relu ->
     blstm ->
@@ -133,7 +138,9 @@ def CNNLayer(inputs, audiolen, num_enc_layers, feat_dim, cell_units, num_channel
         # output_shape = [None, audiolen, feat_dim, num_channel]
         conv_out = conv2d(conv_out, 
                           num_channel, 
-                          name="conv2d_{}".format(i), is_training=is_training)
+                          name="conv2d_{}".format(i), 
+                          apply_bn=apply_bn,
+                          is_training=is_training)
 
     # reshape to [B, L/4, feat_dim/4 * 32]
     shape = tf.shape(conv_out)
@@ -148,6 +155,9 @@ def CNNLayer(inputs, audiolen, num_enc_layers, feat_dim, cell_units, num_channel
                              enc_out,
                              enc_units, 
                              use_bias=True)
+            if apply_bn:
+                enc_out = bn(enc_out, is_training)
+
             enc_out = tf.nn.relu(bn(enc_out, is_training))
 
     return enc_out, enc_state, audiolen
