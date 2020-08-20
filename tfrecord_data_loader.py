@@ -9,6 +9,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 import tensorflow as tf
 import numpy as np
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '2' # set your device id
 
 
 
@@ -79,12 +80,12 @@ def tfrecord_iterator(filenames, record_parser, feat_dim=13, is_training=True):
     bucket_upper_bound = [639, 1062, 1275, 1377, 1449, 1506, 1563, 3600]
     max_tokenlen = 227
 
-  bucket_batch_limit = [96, 48, 48, 48, 48, 48, 48, 48, 48]
+  bucket_batch_limit = [96, 48, 48, 48, 48, 48, 48, 48, 48]  # 2619 steps per epoch
 
   # TODO move 13, 3 to parameters
   shapes = shapes = (([None, feat_dim, 3], []), ([max_tokenlen], []))
   files = tf.data.Dataset.list_files(filenames, shuffle=True)
-  dataset = files.interleave(map_func=tf.data.TFRecordDataset, cycle_length=10)
+  dataset = files.interleave(map_func=tf.data.TFRecordDataset, cycle_length=16)
   dataset = dataset.map(record_parser, num_parallel_calls=16)
   dataset = dataset.apply(tf.data.experimental.bucket_by_sequence_length(element_length_func=_element_length_fn, 
                                                                        bucket_boundaries=bucket_upper_bound,
@@ -97,6 +98,10 @@ def tfrecord_iterator(filenames, record_parser, feat_dim=13, is_training=True):
     dataset = dataset.shuffle(64)        # shuffle the dataset
     dataset = dataset.repeat()           # repeat dataset infinitely
 
+  else:
+    dataset = dataset.repeat(1)           # repeat dataset infinitely
+
+
   iterator = dataset.make_initializable_iterator()
   output_types = dataset.output_types
   output_shapes = dataset.output_shapes
@@ -104,8 +109,9 @@ def tfrecord_iterator(filenames, record_parser, feat_dim=13, is_training=True):
   return iterator, output_types, output_shapes
 
 if __name__ == '__main__':
-    training_filenames = "data/tfrecord_fbank_bpe_5k/train-360*.tfrecord"
-    train_iter, types, shapes = tfrecord_iterator(training_filenames, data_parser, 80)
+    #training_filenames = "data/tfrecord_fbank_bpe_5k/train-360*.tfrecord"
+    training_filenames = "data/tfrecord_fbank_bpe_5k/train*.tfrecord"
+    train_iter, types, shapes = tfrecord_iterator(training_filenames, data_parser, 80, False)
     print(types, shapes)
 
     sess = tf.Session()

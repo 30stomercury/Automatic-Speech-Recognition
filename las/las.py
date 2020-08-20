@@ -16,7 +16,9 @@ class Listener:
                                                           audiolen, 
                                                           self.args.num_enc_layers, 
                                                           self.args.enc_units, 
-                                                          self.args.dropout_rate, is_training)
+                                                          self.args.dropout_rate, 
+                                                          self.args.apply_bn,
+                                                          is_training)
             elif encoder == 'cnn':
                 enc_out, enc_state, enc_len = CNNLayer(inputs, 
                                                        audiolen,
@@ -24,7 +26,9 @@ class Listener:
                                                        self.args.feat_dim,
                                                        self.args.enc_units, 
                                                        self.args.num_enc_channels, 
-                                                       self.args.dropout_rate, is_training)
+                                                       self.args.dropout_rate, 
+                                                       self.args.apply_bn,
+                                                       is_training)
 
             else:
                 raise NotImplementedError
@@ -158,8 +162,8 @@ class Speller:
     def _look_up(self, token):
         """lookup from pre-definded embedding"""
         if self.args.add_vn:
-            self.embedding_matrix += \
-                        0.1*tf.random.normal(tf.shape(self.embedding_matrix), stddev=0.075)
+            return tf.nn.embedding_lookup(self.embedding_matrix + \
+                        tf.random.normal(tf.shape(self.embedding_matrix), stddev=0.075), token)
 
         return tf.nn.embedding_lookup(self.embedding_matrix, token)
 
@@ -315,15 +319,17 @@ class LAS:
     
     def _get_loss(self, logits, y):
         y = tf.slice(y, [0, 0], tf.shape(logits)[:2]) # crop padding
-
         y_ = tf.one_hot(y, self.args.vocab_size)
+
         if self.args.label_smoothing:
             y_ = label_smoothing(y_)
 
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+                            logits=logits, labels=y_)
         mask_padding = 1 - tf.cast(tf.equal(y, 0), tf.float32)
         loss = tf.reduce_sum(
             cross_entropy * mask_padding) / (tf.reduce_sum(mask_padding) + 1e-9)
+
         return loss
 
     def _get_ctc_loss(self, ctc_logits, y, enc_len):

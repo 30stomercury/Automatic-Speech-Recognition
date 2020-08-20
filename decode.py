@@ -21,7 +21,7 @@ from las.las import Listener, Speller, LAS  # load las
 from lang.char_rnn_model import *           # load language model
 from las.arguments import parse_args
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'    # set your decive number
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'    # set your decive number
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 def load_lm(init_dir, model_path):
@@ -93,6 +93,7 @@ except:
 tokenizer = SubwordEncoder(args.subword_dir)
 args.vocab_size = tokenizer.get_vocab_size()
 id_to_token = tokenizer.id_to_token
+token_to_id = tokenizer.token_to_id
 
 
 # init model 

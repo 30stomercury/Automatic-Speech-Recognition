@@ -89,6 +89,10 @@ def parse_args():
                         type=str2bool, 
                         default=True, 
                         help='Apply label smoothing.')
+    parser.add_argument('--apply_bn', 
+                        type=str2bool, 
+                        default=False, 
+                        help='Apply batch normalization.')
     parser.add_argument('--add_vn', 
                         type=str2bool, 
                         default=False, 
@@ -154,7 +158,7 @@ def parse_args():
                         help='Apply schduled sampling.')
     parser.add_argument('--warmup_step',
                         type=int,
-                        default=500000,
+                        default=100000,
                         help='Warmup step before applying scheduled sampling while training. During warmup step, teacher forcing rate is set to 1.')
     parser.add_argument('--max_step',
                         type=int,
@@ -162,7 +166,7 @@ def parse_args():
                         help='Max step in scheduled sampling.')
     parser.add_argument('--min_rate',
                         type=float,
-                        default=0.7,
+                        default=0.4,
                         help='Max step in scheduled sampling.')
     # beam search
     parser.add_argument('--convert_rate',

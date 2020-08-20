@@ -21,7 +21,7 @@ from tfrecord_data_loader import tfrecord_iterator, data_parser, get_num_records
 from las.arguments import parse_args
 
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'  # set your device id
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'  # set your device id
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -45,13 +45,13 @@ gpu_options = tf.GPUOptions(allow_growth=True)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 # tfrecord
-eval_filenames = "data/tfrecord_mfcc_bpe_5k/dev-1.tfrecord"
+eval_filenames = "data/tfrecord_{}_bpe_5k/dev-1.tfrecord".format(args.feat_type)
 
 
 # load from previous output
 try:
     print("Load features...")
-    eval_iter, types, shapes = tfrecord_iterator(eval_filenames, data_parser, is_training=False)
+    eval_iter, types, shapes = tfrecord_iterator(eval_filenames, data_parser, args.feat_dim, is_training=False)
     num_eval_records = get_num_records([eval_filenames])
     print('Number of train records in eval files: {}'.format(
         num_eval_records))
@@ -81,7 +81,7 @@ saver = tf.train.Saver(max_to_keep=100)
 ckpt = tf.train.latest_checkpoint(args.save_dir)
 
 if args.restore_epoch != -1:
-    ckpt = args.save_dir+"/las_E{}".format(args.restore_epoch)
+    ckpt = args.save_dir+"las_E{}".format(args.restore_epoch)
 
 saver.restore(sess, ckpt)
 
@@ -103,9 +103,12 @@ num_eval_batches = 45
 
 # collect hypothesis
 for _ in tqdm(range(num_eval_batches)):
-    pred, gt = sess.run([y_hat, eval_ys])
-    output_id += pred.tolist()
-    gt_id += gt[0].tolist()
+    try:
+        pred, gt = sess.run([y_hat, eval_ys])
+        output_id += pred.tolist()
+        gt_id += gt[0].tolist()
+    except:
+        continue
 
 # conver into chars
 for i in range(len(output_id)):
@@ -130,4 +133,4 @@ for i in range(len(texts_gt)):
     error += e
     N += n
    
-logging.info("WER: {}".format(error/N))
+logging.info("total utterances: {}, WER: {}".format(len(texts_gt), error/N))
