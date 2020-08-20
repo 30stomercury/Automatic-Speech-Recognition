@@ -98,8 +98,7 @@ class Speller:
                                                            alphas[:, -1, :],              # previous alignment
                                                            is_training)
                 if is_training:
-                    #condition = tf_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
-                    condition = 1 > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+                    condition = tf_rate > tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
 
                     prev_token = tf.cond(condition,
                                         lambda: self._look_up(teacher[:, t]),             # => teacher forcing
