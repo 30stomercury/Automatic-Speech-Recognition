@@ -41,7 +41,7 @@ fi
 echo "$0: Data Preparation"
 python3 preprocess.py --unit $unit \
 		      --feat_type $feat_type \
-		      --feat_type $feat_dim \
+		      --feat_dim $feat_dim \
 		      --train_100hr_corpus_dir $libri_100hr_dir \
 		      --train_360hr_corpus_dir $libri_360hr_dir \
 		      --train_500hr_corpus_dir $libri_500hr_dir \
