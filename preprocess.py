@@ -80,10 +80,13 @@ def process_audios(audio_path, args):
                                          frame_length=frame_length/1000, 
                                          frame_stride=frame_step/1000, 
                                          num_filters=feat_dim)
+
+        feat = speechpy.feature.extract_derivative_feature(feat)
             
         if cmvn:
+            feat = feat.reshape(feat, [-1, feat_dim*3])
             feat = speechpy.processing.cmvn(feat, True)
-            feat = speechpy.feature.extract_derivative_feature(feat)
+            feat = feat.reshape(feat, [-1, feat_dim, 3])
 
         feats.append(feat.astype(np.float32))
         featlen.append(len(feats[-1]))
