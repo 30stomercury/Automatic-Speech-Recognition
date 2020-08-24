@@ -87,7 +87,7 @@ class Speller:
             if is_training and self.args.scheduled_sampling:
                 tf_rate = self._scheduled_sampling()
             else:
-                tf_rate = 1
+                tf_rate = 0.9
 
             # define loop
             def iteration(t, rnn_state, prev_token, output, alphas):
@@ -268,7 +268,7 @@ class LAS:
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         lr =  self._scheduled_learning_rate(
-                start=50000, decay_step=100000, decay_rate=0.5, min_rate=0.01, global_step=global_step)
+                start=10000, decay_step=30000, decay_rate=0.5, min_rate=0.01, global_step=global_step)
         optimizer = tf.train.AdamOptimizer(lr)
 
         # gradient clipping

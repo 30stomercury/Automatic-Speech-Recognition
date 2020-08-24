@@ -2,6 +2,7 @@
 unit="subword"
 size=5000
 feat_type="mfcc"
+feat_dim=13
 
 # train
 epoch=100
@@ -40,6 +41,7 @@ fi
 echo "$0: Data Preparation"
 python3 preprocess.py --unit $unit \
 		      --feat_type $feat_type \
+		      --feat_type $feat_dim \
 		      --train_100hr_corpus_dir $libri_100hr_dir \
 		      --train_360hr_corpus_dir $libri_360hr_dir \
 		      --train_500hr_corpus_dir $libri_500hr_dir \
@@ -58,7 +60,7 @@ python3 create_tfrecord.py --unit $unit \
 echo "$0: LAS Training"
 python3 train.py --lr 0.0001 \
 		 --epoch $epoch \
-		 --feat_dim 13 \
+		 --feat_dim $feat_dim \
 		 --enc_units 512 \
 		 --dec_units 1024 \
 		 --embedding_size 256 \
@@ -77,7 +79,7 @@ python3 train.py --lr 0.0001 \
 
 echo "$0: Decoding"
 python3 decode.py --split $split \
-		  --feat_dim 13 \
+		  --feat_dim $feat_dim \
 		  --enc_units 512 \
        	 	  --dec_units 1024 \
 		  --embedding_size 256 \
