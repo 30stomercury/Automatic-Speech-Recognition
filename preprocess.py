@@ -80,6 +80,8 @@ def process_audios(audio_path, args):
                                          frame_length=frame_length/1000, 
                                          frame_stride=frame_step/1000, 
                                          num_filters=feat_dim)
+        else:
+            raise NotImplementedError
 
         feat = speechpy.feature.extract_derivative_feature(feat)
             
