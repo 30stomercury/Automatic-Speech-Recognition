@@ -1,6 +1,6 @@
 tensorflow-gpu==1.13.1
 tensor2tensor==1.14.0 
-numpy==1.17.4
+numpy==1.22.0
 librosa==0.7.1 
 speechpy
 tqdm
